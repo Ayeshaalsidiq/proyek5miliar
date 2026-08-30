@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { X, QrCode, Wallet, CreditCard, CheckCircle2, ChevronRight, Copy, Landmark, Banknote, Upload, Image as ImageIcon, Trash2, Ticket } from 'lucide-react';
 import { PaymentMethod, MyVoucher } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { validateVoucher } from '../services/tangolabService';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -11,6 +12,8 @@ interface PaymentModalProps {
   myVouchers: MyVoucher[];
   appliedVoucher: MyVoucher | null;
   setAppliedVoucher: React.Dispatch<React.SetStateAction<MyVoucher | null>>;
+  userId?: string;
+  cartItems?: any[];
 }
 
 const METHOD_DETAILS: Record<string, { label: string; icon: any; color: string; detail: string; subDetail: string }> = {
@@ -31,6 +34,8 @@ export default function PaymentModal({
   myVouchers,
   appliedVoucher,
   setAppliedVoucher,
+  userId,
+  cartItems,
 }: PaymentModalProps) {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('QRIS');
   const [customerName, setCustomerName]     = useState<string>('');
@@ -39,6 +44,8 @@ export default function PaymentModal({
   const [paymentProof, setPaymentProof]     = useState<string | null>(null);
   const fileInputRef                        = useRef<HTMLInputElement>(null);
   const [showVoucherSheet, setShowVoucherSheet] = useState(false);
+  const [voucherValidating, setVoucherValidating] = useState(false);
+  const [voucherError, setVoucherError] = useState<string | null>(null);
 
   // ── Hitung diskon voucher ──────────────────────────────────────────────────
   let discountAmount = 0;
@@ -81,6 +88,26 @@ export default function PaymentModal({
       onConfirm(selectedMethod, customerName.trim());
       setIsProcessing(false);
     }, 2000);
+  };
+
+  const handleApplyVoucher = async (v: MyVoucher) => {
+    const vCode = (v as any).voucher_code || v.code;
+    if (userId && vCode) {
+      setVoucherValidating(true);
+      setVoucherError(null);
+      const res = await validateVoucher(userId, vCode, total, cartItems || []);
+      setVoucherValidating(false);
+      if (res && res.status === 'valid') {
+        setAppliedVoucher(v);
+        setShowVoucherSheet(false);
+      } else {
+        setVoucherError(res?.message || 'Voucher tidak valid untuk pesanan ini.');
+      }
+    } else {
+      // Fallback: apply without backend validation
+      setAppliedVoucher(v);
+      setShowVoucherSheet(false);
+    }
   };
 
   const methods   = Object.keys(METHOD_DETAILS) as PaymentMethod[];
@@ -437,6 +464,17 @@ export default function PaymentModal({
                     </button>
                   </div>
                   <div className="overflow-y-auto p-6 space-y-3">
+                    {voucherValidating && (
+                      <div className="flex items-center justify-center py-4 gap-3">
+                        <div className="w-5 h-5 border-2 border-orange-200 border-t-[#FF6B00] rounded-full animate-spin" />
+                        <span className="text-sm font-bold text-slate-500">Memvalidasi voucher...</span>
+                      </div>
+                    )}
+                    {voucherError && (
+                      <div className="bg-red-50 border border-red-100 p-3 rounded-2xl text-center">
+                        <p className="text-red-600 text-xs font-bold">{voucherError}</p>
+                      </div>
+                    )}
                     {myVouchers.filter(v => !v.used).length === 0 ? (
                       <div className="text-center py-10">
                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
@@ -449,13 +487,14 @@ export default function PaymentModal({
                       myVouchers.filter(v => !v.used).map((v, i) => (
                         <button
                           key={`${v.id}-${i}`}
-                          onClick={() => { setAppliedVoucher(v); setShowVoucherSheet(false); }}
-                          className="w-full text-left border border-slate-100 rounded-[24px] overflow-hidden hover:border-orange-200 transition-colors"
+                          onClick={() => handleApplyVoucher(v)}
+                          disabled={voucherValidating}
+                          className={`w-full text-left border border-slate-100 rounded-[24px] overflow-hidden hover:border-orange-200 transition-colors ${voucherValidating ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          <div className={`bg-gradient-to-r ${v.color} px-4 py-3 flex items-center gap-3`}>
-                            <span className="text-2xl">{v.icon}</span>
+                          <div className={`bg-gradient-to-r ${v.color || 'from-[#FF6B00] to-yellow-500'} px-4 py-3 flex items-center gap-3`}>
+                            <span className="text-2xl">{v.icon || '🎫'}</span>
                             <div className="flex-1">
-                              <p className="text-white font-black text-sm">{v.title}</p>
+                              <p className="text-white font-black text-sm">{(v as any).name || v.title}</p>
                               <p className="text-white/80 text-[10px] font-bold">{v.description}</p>
                             </div>
                             <div className="bg-white text-slate-800 px-3 py-1 rounded-xl font-black text-xs">

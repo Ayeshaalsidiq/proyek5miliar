@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { LogIn, ArrowLeft, Mail, Lock, Loader2 } from 'lucide-react';
+import { LogIn, ArrowLeft, User, Loader2 } from 'lucide-react';
+import { validateUserLogin } from '../services/tangolabService';
 
 interface LoginViewProps {
   onBack: () => void;
@@ -9,31 +10,40 @@ interface LoginViewProps {
 
 export default function LoginView({ onBack, onSuccess }: LoginViewProps) {
   const [emailNim, setEmailNim] = useState('');
-  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanInput = emailNim.trim();
+    if (!cleanInput) return;
+
     setIsLoading(true);
     setError('');
 
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailNim, password }),
-      });
+      const result = await validateUserLogin(cleanInput);
 
-      const data = await response.json();
-
-      if (data.success) {
-        onSuccess(data.user);
+      if (result.status === 'success' && result.user) {
+        // Map Tangolab user fields to app's expected format
+        const user = result.user as any;
+        const mappedUser = {
+          id: user.id,
+          name: user.nama || user.name || user.id,
+          nama: user.nama || user.name || user.id,
+          nim: user.nim || '',
+          email: user.email || '',
+          coin_balance: user.coin_balance ?? 0,
+          points: user.coin_balance ?? 0,
+          role: user.role || 'Pelanggan',
+          avatar_url: user.avatar_url || '',
+        };
+        onSuccess(mappedUser);
       } else {
-        setError(data.message || 'Login gagal');
+        setError(result.message || 'Login gagal. ID / NIM tidak ditemukan.');
       }
     } catch (err) {
-      setError('Terjadi kesalahan koneksi');
+      setError('Terjadi kesalahan koneksi. Pastikan server aktif.');
     } finally {
       setIsLoading(false);
     }
@@ -63,34 +73,17 @@ export default function LoginView({ onBack, onSuccess }: LoginViewProps) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">
-              Email / NIM
+              NIM / User ID Tangolab
             </label>
             <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
               <input
                 type="text"
                 required
                 value={emailNim}
                 onChange={(e) => setEmailNim(e.target.value)}
-                placeholder="Masukkan email atau NIM"
-                className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-700 placeholder:text-slate-300 focus:ring-2 focus:ring-orange-100 transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-700 placeholder:text-slate-300 focus:ring-2 focus:ring-orange-100 transition-all"
+                placeholder="Masukkan NIM atau User ID Anda"
+                className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-700 placeholder:text-slate-300 focus:ring-2 focus:ring-orange-100 transition-all focus:outline-none"
               />
             </div>
           </div>
@@ -104,9 +97,14 @@ export default function LoginView({ onBack, onSuccess }: LoginViewProps) {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-[#FF6B00] text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-orange-100 flex items-center justify-center gap-2 hover:bg-[#e66000] transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+            className="w-full bg-[#FF6B00] text-white py-5 rounded-[24px] font-black text-lg shadow-xl shadow-orange-100 flex items-center justify-center gap-2 hover:bg-[#e66000] transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4 cursor-pointer"
           >
-            {isLoading ? <Loader2 className="animate-spin" /> : 'MASUK'}
+          {isLoading ? (
+            <>
+              <Loader2 className="animate-spin" />
+              <span className="text-sm">Memverifikasi...</span>
+            </>
+          ) : 'MASUK'}
           </button>
         </form>
       </motion.div>

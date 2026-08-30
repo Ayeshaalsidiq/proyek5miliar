@@ -143,7 +143,10 @@ export default function GameScreen({ onClose, onGameComplete, userId, isInline =
 
             {/* CTA Button */}
             <button
-              onClick={simulateWin}
+              onClick={() => {
+                const uId = userId || 'GUEST';
+                window.open(`https://ngolab-gami.kolab.top?userId=${encodeURIComponent(uId)}`, '_blank');
+              }}
               className="w-full bg-gradient-to-r from-[#FF6B00] to-amber-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-orange-200 active:scale-[0.98] transition-all flex justify-center items-center gap-2.5 cursor-pointer hover:shadow-xl hover:shadow-orange-200/60"
             >
               <Gamepad2 size={20} />

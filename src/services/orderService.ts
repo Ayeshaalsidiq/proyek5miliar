@@ -1,8 +1,10 @@
 import { Order } from '../types';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 export async function submitOrderToBackend(order: Order): Promise<boolean> {
   try {
-    const response = await fetch('/api/order', {
+    const response = await fetch(`${API_BASE_URL}/api/order`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -19,7 +21,7 @@ export async function submitOrderToBackend(order: Order): Promise<boolean> {
 
 export async function submitScanTracking(tableNumber: string): Promise<boolean> {
   try {
-    await fetch('/api/scan', {
+    await fetch(`${API_BASE_URL}/api/scan`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

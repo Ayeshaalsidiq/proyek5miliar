@@ -4,6 +4,8 @@ import { Order } from '../types';
 import { motion } from 'motion/react';
 import { submitOrderToBackend } from '../services/orderService';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 interface ReceiptProps {
   order: Order;
   onClose: () => void;
@@ -29,7 +31,7 @@ export default function Receipt({ order, onClose, onUpdateOrder }: ReceiptProps)
     // Kirim rating untuk masing-masing menu item ke /api/ratings
     for (const item of order.items) {
       try {
-        await fetch('/api/ratings', {
+        await fetch(`${API_BASE_URL}/api/ratings`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -50,3 +50,22 @@ export interface MyVoucher extends Voucher {
   code: string;
   used: boolean;
 }
+
+export interface PromoKoin {
+  id: string;
+  title: string;
+  description: string;
+  coin_cost: number;
+  discount_type: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  discount_value: number;
+  min_order: number;
+  category: string;
+}
+
+export interface UserVoucher {
+  id: string;
+  voucher_code: string;
+  promo_id: string;
+  status: 'ACTIVE' | 'USED' | 'EXPIRED';
+  promo: PromoKoin;
+}

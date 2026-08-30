@@ -19,6 +19,10 @@ import BottomNavigation, { TabType } from './components/BottomNavigation';
 import { motion, AnimatePresence } from 'motion/react';
 import { submitScanTracking } from './services/orderService';
 import { Html5Qrcode } from 'html5-qrcode';
+import { getRecommendations, earnCoins, getUserVouchers, useVoucher, validateVoucher } from './services/tangolabService';
+
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -99,6 +103,8 @@ export default function App() {
   });
   const [appliedVoucher, setAppliedVoucher] = useState<MyVoucher | null>(null);
   const [promos, setPromos] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+
   const [voucherCatalog, setVoucherCatalog] = useState<Voucher[]>([]);
   const [pointSettings, setPointSettings] = useState({ earningRate: 1000, minPurchase: 10000 });
 
@@ -151,7 +157,7 @@ export default function App() {
       const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 detik di frontend
 
       try {
-        const response = await fetch('/api/menu', { signal: controller.signal });
+        const response = await fetch(`${API_BASE_URL}/api/menu`, { signal: controller.signal });
         clearTimeout(timeoutId);
 
         let result;
@@ -222,7 +228,7 @@ export default function App() {
 
     const fetchPromos = async () => {
       try {
-        const response = await fetch('/api/promos');
+        const response = await fetch(`${API_BASE_URL}/api/promos`);
         if (response.ok) {
           const data = await response.json();
           setPromos(Array.isArray(data) ? data : []);
@@ -234,7 +240,7 @@ export default function App() {
 
     const fetchPointSettings = async () => {
       try {
-        const response = await fetch('/api/point-settings');
+        const response = await fetch(`${API_BASE_URL}/api/point-settings`);
         if (response.ok) {
           const data = await response.json();
           if (data && data.earningRate !== undefined) {
@@ -251,7 +257,7 @@ export default function App() {
 
     const fetchPointRewards = async () => {
       try {
-        const response = await fetch('/api/point-rewards');
+        const response = await fetch(`${API_BASE_URL}/api/point-rewards`);
         if (response.ok) {
           const data = await response.json();
           if (Array.isArray(data)) {
@@ -303,6 +309,59 @@ export default function App() {
     fetchMenu();
   }, []);
 
+  // Load Tangolab recommendations and user vouchers when logged in
+  useEffect(() => {
+    if (currentUser && currentUser.id) {
+      getRecommendations(currentUser.id).then(data => {
+        if (data) {
+          if (data.user) {
+            // Merge with local state
+            const updatedUser = { ...currentUser, ...data.user };
+            setCurrentUser(updatedUser);
+            localStorage.setItem('maslahat_user', JSON.stringify(updatedUser));
+            if (data.user.coin_balance !== undefined) {
+              setPoints(data.user.coin_balance);
+              localStorage.setItem('maslahat_points', data.user.coin_balance.toString());
+            }
+          }
+          if (Array.isArray(data.recommendations)) {
+            setRecommendations(data.recommendations);
+          }
+        }
+      });
+
+      refreshVouchers(currentUser.id);
+    } else {
+      setRecommendations([]);
+    }
+  }, [currentUser?.id]);
+
+  // Helper to refresh vouchers from backend
+  const refreshVouchers = async (userId?: string) => {
+    const uid = userId || currentUser?.id;
+    if (!uid) return;
+    const vouchers = await getUserVouchers(uid);
+    if (Array.isArray(vouchers)) {
+      const mapped = vouchers.map((v: any) => ({
+        ...v,
+        id: v.id || `vcr-${v.voucher_code || Math.random()}`,
+        title: v.title || v.name || 'Voucher Diskon',
+        description: v.description || 'Voucher potongan belanja',
+        cost: Number(v.cost || 0),
+        discount: v.discount || (v.discount_price ? `Rp ${Number(v.discount_price).toLocaleString('id-ID')}` : 'Diskon'),
+        expiry: v.expiry || '30 hari',
+        color: v.color || 'from-indigo-500 to-purple-600',
+        icon: v.icon || '🎫',
+        claimedAt: v.claimedAt || new Date().toLocaleString('id-ID'),
+        code: v.voucher_code || v.code || '',
+        used: v.used === 1 || v.used === true,
+      }));
+      setMyVouchers(mapped);
+      localStorage.setItem('maslahat_my_vouchers', JSON.stringify(mapped));
+    }
+  };
+
+
   const handleAuth = (type: 'guest' | 'login' | 'table_scan', userData?: any) => {
     if (type === 'login' || type === 'table_scan') {
       setIsAuthenticated(true);
@@ -314,10 +373,9 @@ export default function App() {
       if (userData) {
         setCurrentUser(userData);
         localStorage.setItem('maslahat_user', JSON.stringify(userData));
-        if (userData.points !== undefined) {
-          setPoints(userData.points);
-          localStorage.setItem('maslahat_points', userData.points.toString());
-        }
+        const initialPoints = userData.points ?? userData.coin_balance ?? 0;
+        setPoints(initialPoints);
+        localStorage.setItem('maslahat_points', initialPoints.toString());
       }
     } else {
       setIsAuthenticated(true);
@@ -336,39 +394,37 @@ export default function App() {
   };
 
   const handleClaimPoints = async (amount: number, source: string = 'Aktivitas Game/Simulasi') => {
-    const newPoints = points + amount;
-    setPoints(newPoints);
-    localStorage.setItem('maslahat_points', newPoints.toString());
-
     if (!isGuest && currentUser?.id) {
       try {
-        const response = await fetch(`/api/users/${currentUser.id}/points`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount,
-            source,
-            customerName: currentUser.name
-          })
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.points !== undefined) {
-            setPoints(data.points);
-            localStorage.setItem('maslahat_points', data.points.toString());
-            setCurrentUser((prev: any) => {
-              if (prev && prev.id === currentUser.id) {
-                const updated = { ...prev, points: data.points };
-                localStorage.setItem('maslahat_user', JSON.stringify(updated));
-                return updated;
-              }
-              return prev;
-            });
-          }
+        const res = await earnCoins(currentUser.id, amount, source);
+        if (res) {
+          setPoints(res.new_balance);
+          localStorage.setItem('maslahat_points', res.new_balance.toString());
+          setCurrentUser((prev: any) => {
+            if (prev && prev.id === currentUser.id) {
+              const updated = { ...prev, points: res.new_balance };
+              localStorage.setItem('maslahat_user', JSON.stringify(updated));
+              return updated;
+            }
+            return prev;
+          });
+        } else {
+          // Fallback
+          const newPoints = points + amount;
+          setPoints(newPoints);
+          localStorage.setItem('maslahat_points', newPoints.toString());
         }
       } catch (err) {
         console.error("Gagal update poin di backend:", err);
+        // Fallback
+        const newPoints = points + amount;
+        setPoints(newPoints);
+        localStorage.setItem('maslahat_points', newPoints.toString());
       }
+    } else {
+      const newPoints = points + amount;
+      setPoints(newPoints);
+      localStorage.setItem('maslahat_points', newPoints.toString());
     }
   };
 
@@ -377,22 +433,19 @@ export default function App() {
     if (currentUser && currentUser.id && !isGuest) {
       const syncPoints = async () => {
         try {
-          const response = await fetch(`/api/users/${currentUser.id}/points`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data && data.points !== undefined) {
-              setPoints(data.points);
-              localStorage.setItem('maslahat_points', data.points.toString());
-              
-              setCurrentUser((prev: any) => {
-                if (prev && prev.id === currentUser.id) {
-                  const updated = { ...prev, points: data.points };
-                  localStorage.setItem('maslahat_user', JSON.stringify(updated));
-                  return updated;
-                }
-                return prev;
-              });
-            }
+          const res = await getRecommendations(currentUser.id);
+          if (res && res.user && res.user.coin_balance !== undefined) {
+            setPoints(res.user.coin_balance);
+            localStorage.setItem('maslahat_points', res.user.coin_balance.toString());
+            
+            setCurrentUser((prev: any) => {
+              if (prev && prev.id === currentUser.id) {
+                const updated = { ...prev, points: res.user.coin_balance };
+                localStorage.setItem('maslahat_user', JSON.stringify(updated));
+                return updated;
+              }
+              return prev;
+            });
           }
         } catch (error) {
           console.error("Gagal sinkronisasi poin di awal:", error);
@@ -407,7 +460,7 @@ export default function App() {
     if (currentUser && currentUser.id && !isGuest) {
       const fetchOrderHistory = async () => {
         try {
-          const response = await fetch(`/api/users/${currentUser.id}/orders`);
+          const response = await fetch(`${API_BASE_URL}/api/users/${currentUser.id}/orders`);
           if (response.ok) {
             const data = await response.json();
             if (Array.isArray(data)) {
@@ -444,7 +497,7 @@ export default function App() {
         localStorage.setItem('maslahat_zone', parsedZone);
       } else {
         // Fallback: ambil data zone dari database smart_tags
-        fetch('/api/smart-tags')
+        fetch(`${API_BASE_URL}/api/smart-tags`)
           .then(res => res.json())
           .then(data => {
             if (Array.isArray(data)) {
@@ -532,7 +585,7 @@ export default function App() {
           );
         } catch (err) {
           console.error("Gagal start scanner:", err);
-          setScannerError("Gagal mengakses kamera. Pastikan izin kamera diberikan.");
+          setScannerError("Gagal mengakses kamera. Pastikan izin kamera diberikan dan web diakses via HTTPS.");
         }
       };
 
@@ -553,6 +606,17 @@ export default function App() {
       return matchesSearch && matchesCategory;
     });
   }, [searchQuery, activeCategory, menuData]);
+
+  const recommendedMenuItems = useMemo(() => {
+    if (!recommendations || !recommendations.length) return [];
+    return menuData.filter(item => 
+      recommendations.some((rec: any) => 
+        String(rec?.id || '') === String(item.id) || 
+        (rec?.name && rec.name.toLowerCase() === item.name.toLowerCase())
+      )
+    );
+  }, [recommendations, menuData]);
+
 
   const addToCartWithNote = (item: MenuItem, note: string) => {
     setCart((prev) => {
@@ -613,16 +677,34 @@ export default function App() {
     setActiveTab('game');
   };
 
-  const handleGameComplete = (pointsEarned: number) => {
-    if (!isGuest) {
-      const newPoints = points + pointsEarned;
-      setPoints(newPoints);
-      localStorage.setItem('maslahat_points', newPoints.toString());
-      alert(`Selamat! Anda mendapatkan ${pointsEarned} poin dari permainan!`);
+  const handleGameComplete = async (pointsEarned: number) => {
+    if (!isGuest && currentUser && currentUser.id) {
+      try {
+        const res = await earnCoins(currentUser.id, pointsEarned, 'Menang Spin Wheel');
+        if (res) {
+          setPoints(res.new_balance);
+          localStorage.setItem('maslahat_points', res.new_balance.toString());
+          alert(`Selamat! Anda mendapatkan ${pointsEarned} koin dari permainan!`);
+        } else {
+          // Fallback if API fails
+          const newPoints = points + pointsEarned;
+          setPoints(newPoints);
+          localStorage.setItem('maslahat_points', newPoints.toString());
+          alert(`Selamat! Anda mendapatkan ${pointsEarned} koin dari permainan!`);
+        }
+      } catch (err) {
+        console.error('Failed to award coins:', err);
+        // Fallback
+        const newPoints = points + pointsEarned;
+        setPoints(newPoints);
+        localStorage.setItem('maslahat_points', newPoints.toString());
+        alert(`Selamat! Anda mendapatkan ${pointsEarned} koin dari permainan!`);
+      }
     } else {
-      alert(`Anda mendapatkan ${pointsEarned} poin! Silakan login untuk menyimpan poin Anda di lain waktu.`);
+      alert(`Anda mendapatkan ${pointsEarned} koin! Silakan login untuk menyimpan koin Anda di lain waktu.`);
     }
   };
+
 
   const handleConfirmPayment = async (method: PaymentMethod, customerName: string) => {
     const finalCustomerName = customerName || "Pelanggan App";
@@ -681,7 +763,7 @@ export default function App() {
 
     try {
       // Tembak Data Pesanan LANGSUNG ke Sistem Admin via Localtunnel
-      await fetch('/api/order', {
+      await fetch(`${API_BASE_URL}/api/order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -692,7 +774,7 @@ export default function App() {
       if (!isGuest && currentUser?.id) {
         // Fetch updated points from backend
         try {
-          const ptsRes = await fetch(`/api/users/${currentUser.id}/points`);
+          const ptsRes = await fetch(`${API_BASE_URL}/api/users/${currentUser.id}/points`);
           if (ptsRes.ok) {
             const ptsData = await ptsRes.json();
             if (ptsData && ptsData.points !== undefined) {
@@ -792,7 +874,7 @@ export default function App() {
 
     const checkStatus = async () => {
       try {
-        const response = await fetch(`/api/order/${completedOrder.id}`);
+        const response = await fetch(`${API_BASE_URL}/api/order/${completedOrder.id}`);
         if (response.ok) {
           const data = await response.json();
           const newStatus = data.status || data.order_status || completedOrder.status;
@@ -843,6 +925,7 @@ export default function App() {
                 onLogin={() => setAuthView('login')}
                 onRegister={() => setAuthView('register')}
                 onGuest={() => handleAuth('guest')}
+                onNfcLogin={(user) => handleAuth('login', user)}
               />
             )}
             {authView === 'login' && (
@@ -885,29 +968,33 @@ export default function App() {
         isOpen={isPointsModalOpen}
         onClose={() => setIsPointsModalOpen(false)}
         points={points}
+        userId={currentUser?.id}
+        onRefreshPoints={() => {
+          // Point refresh logic will be triggered by useEffect
+        }}
         onClaim={handleClaimPoints}
-        myVouchers={myVouchers}
-        setMyVouchers={setMyVouchers}
-        promos={promos}
-        voucherCatalog={voucherCatalog}
       />
       <PaymentModal
         isOpen={isPaymentOpen}
         onClose={() => setIsPaymentOpen(false)}
         total={cartTotal}
-        onConfirm={(method, customerName) => {
-          // Remove used voucher from user's wallet
-          if (appliedVoucher) {
-            const updated = myVouchers.filter(v => v.code !== appliedVoucher.code);
-            setMyVouchers(updated);
-            localStorage.setItem('maslahat_my_vouchers', JSON.stringify(updated));
+        onConfirm={async (method, customerName) => {
+          // Call use-voucher API to mark voucher as used on the backend
+          if (appliedVoucher && currentUser?.id) {
+            const vCode = appliedVoucher.voucher_code || appliedVoucher.code;
+            if (vCode) {
+              await useVoucher(currentUser.id, vCode);
+            }
             setAppliedVoucher(null);
+            refreshVouchers();
           }
           handleConfirmPayment(method, customerName);
         }}
         myVouchers={myVouchers}
         appliedVoucher={appliedVoucher}
         setAppliedVoucher={setAppliedVoucher}
+        userId={currentUser?.id}
+        cartItems={cart}
       />
 
       {/* Floating Order Status Tracker */}
@@ -1025,6 +1112,27 @@ export default function App() {
                   </motion.div>
                 )}
 
+                {recommendedMenuItems.length > 0 && (
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center justify-between pl-1">
+                      <div>
+                        <h3 className="text-lg font-black text-slate-800 tracking-tight">Rekomendasi Spesial Untukmu</h3>
+                        <p className="text-[10px] font-bold text-slate-400">Pilihan hidangan terbaik berdasarkan profil Tangolab Anda</p>
+                      </div>
+                      <span className="bg-orange-50 text-[#FF6B00] text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest">
+                        Personalized
+                      </span>
+                    </div>
+                    <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 scroll-smooth">
+                      {recommendedMenuItems.map((item) => (
+                        <div key={`rec-${item.id}`} className="w-[170px] sm:w-[190px] shrink-0">
+                          <MenuCard item={item} onAdd={(item) => setSelectedItemForNote(item)} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <CategoryFilter activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -1090,13 +1198,10 @@ export default function App() {
           <VoucherRedeemModal
             isOpen={true}
             onClose={() => setActiveTab('dashboard')}
+            userId={currentUser?.id}
             myVouchers={myVouchers}
-            setMyVouchers={setMyVouchers}
+            onRefreshVouchers={() => refreshVouchers()}
             isInline={true}
-            points={points}
-            onClaimPoints={handleClaimPoints}
-            promos={promos}
-            voucherCatalog={voucherCatalog}
           />
         )}
 

@@ -39,18 +39,16 @@ export default function BottomNavigation({ activeTab, setActiveTab, cartCount }:
                     color: isActive ? '#FF6B00' : '#94a3b8',
                   }}
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                  className={`p-1.5 rounded-xl transition-colors duration-200 ${
-                    isActive ? 'bg-orange-50 text-[#FF6B00]' : 'text-slate-400 group-hover:text-slate-600'
-                  }`}
+                  className={`p-1.5 rounded-xl transition-colors duration-200 ${isActive ? 'bg-orange-50 text-[#FF6B00]' : 'text-slate-400 group-hover:text-slate-600'
+                    }`}
                 >
                   <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                 </motion.div>
               </div>
 
               <span
-                className={`text-[9px] font-black mt-1 tracking-wider uppercase transition-colors duration-200 ${
-                  isActive ? 'text-[#FF6B00]' : 'text-slate-400 group-hover:text-slate-600'
-                }`}
+                className={`text-[9px] font-black mt-1 tracking-wider uppercase transition-colors duration-200 ${isActive ? 'text-[#FF6B00]' : 'text-slate-400 group-hover:text-slate-600'
+                  }`}
               >
                 {tab.label}
               </span>

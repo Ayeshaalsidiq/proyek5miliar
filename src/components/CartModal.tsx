@@ -33,7 +33,7 @@ export default function CartModal({
   return (
     <AnimatePresence>
       {(isOpen || selectedItemForNote) && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -236,21 +236,23 @@ export default function CartModal({
                   
 
 
-                  <button
-                    onClick={onCheckout}
-                    className="w-full bg-[#FF6B00] text-white py-5 rounded-[32px] font-black text-lg hover:bg-[#e66000] transition-all shadow-2xl shadow-orange-200 active:scale-[0.98] flex items-center justify-center gap-3 relative overflow-hidden group"
-                  >
-                    <span className="relative z-10 flex items-center gap-2">
-                      Lanjut ke Pembayaran
-                      <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                    </span>
-                    <motion.div 
-                      initial={{ left: '-100%' }}
-                      whileHover={{ left: '100%' }}
-                      transition={{ duration: 0.6 }}
-                      className="absolute top-0 w-1/2 h-full bg-white/20 skew-x-12"
-                    />
-                  </button>
+                  <div className="pb-6 md:pb-0">
+  <button
+    onClick={onCheckout}
+    className="w-full bg-[#FF6B00] text-white py-5 rounded-[32px] font-black text-lg hover:bg-[#e66000] transition-all shadow-2xl shadow-orange-200 active:scale-[0.98] flex items-center justify-center gap-3 relative overflow-hidden group"
+  >
+    <span className="relative z-10 flex items-center gap-2">
+      Lanjut ke Pembayaran
+      <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+    </span>
+    <motion.div 
+      initial={{ left: '-100%' }}
+      whileHover={{ left: '100%' }}
+      transition={{ duration: 0.6 }}
+      className="absolute top-0 w-1/2 h-full bg-white/20 skew-x-12"
+    />
+  </button>
+</div>
                 </div>
               )}
             </motion.div>
