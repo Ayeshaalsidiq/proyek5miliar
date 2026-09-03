@@ -57,6 +57,9 @@ export default function App() {
   const [showStatus, setShowStatus] = useState(false);
   const [isRinging, setIsRinging] = useState(false);
   const [isPointsModalOpen, setIsPointsModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [orderType, setOrderType] = useState<'Dine In' | 'Takeaway' | 'Delivery FIT'>('Dine In');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
   const [points, setPoints] = useState<number>(() => {
     const saved = localStorage.getItem('maslahat_points');
     return saved ? parseInt(saved) : 1000;
@@ -130,6 +133,7 @@ export default function App() {
     }
   });
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleUpdateOrder = (updatedOrder: Order) => {
     setOrderHistory((prev) => {
@@ -740,7 +744,8 @@ export default function App() {
         return zoneName && zoneName !== 'Area Meja' ? `${base} (${zoneName})` : base;
       })(),
       customer: finalCustomerName,
-      type: "Dine In",
+      type: orderType,
+      deliveryAddress: orderType === 'Delivery FIT' ? deliveryAddress : undefined,
       paymentMethod: method,
       amountPaid: finalTotal,
       change: 0,
@@ -917,10 +922,8 @@ export default function App() {
           <>
             {authView === 'welcome' && (
               <WelcomeScreen
-                onLogin={() => setAuthView('login')}
                 onRegister={() => setAuthView('register')}
-                onGuest={() => handleAuth('guest')}
-                onNfcLogin={(user) => handleAuth('login', user)}
+                onSuccess={(user) => handleAuth('login', user)}
               />
             )}
             {authView === 'login' && (
@@ -934,7 +937,8 @@ export default function App() {
             {authView === 'register' && (
               <RegisterView
                 onBack={() => setAuthView('welcome')}
-                onSuccess={() => setAuthView('login')}
+                onSuccess={() => setAuthView('welcome')}
+                onGuest={() => handleAuth('guest')}
               />
             )}
           </>
@@ -942,6 +946,52 @@ export default function App() {
       </AnimatePresence>
 
       {/* Professional Notification Overlay */}
+
+      {/* Logout Confirmation Modal */}
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLogoutConfirm(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white w-full max-w-sm rounded-[32px] p-6 relative z-10 shadow-2xl"
+            >
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <LogIn size={28} className="rotate-180" />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 text-center mb-2">Konfirmasi Logout</h3>
+              <p className="text-slate-500 text-center text-sm font-medium mb-8">
+                Apakah Anda yakin ingin keluar dari akun ini? Anda akan diarahkan kembali ke halaman login.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 py-3.5 rounded-2xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLogoutConfirm(false);
+                    handleLogout();
+                  }}
+                  className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200 transition-colors"
+                >
+                  Ya, Logout
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <Header
         tableNumber={tableNumber}
@@ -954,11 +1004,11 @@ export default function App() {
           setActiveTab('profile');
           setIsPointsModalOpen(true);
         }}
-        onLogout={handleLogout}
+        onLogout={() => setShowLogoutConfirm(true)}
         onProfileClick={() => setActiveTab('profile')}
         activeTab={activeTab}
         cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
-        onCartClick={() => setIsCartOpen(true)}
+        onCartClick={() => setActiveTab('cart')}
       />
 
       <PointsModal
@@ -971,49 +1021,7 @@ export default function App() {
         }}
         onClaim={handleClaimPoints}
       />
-      <PaymentModal
-        isOpen={isPaymentOpen}
-        onClose={() => setIsPaymentOpen(false)}
-        total={cartTotal}
-        onConfirm={async (method, customerName) => {
-          // Call use-voucher API to mark voucher as used on the backend
-          if (appliedVoucher && currentUser?.id) {
-            const vCode = appliedVoucher.voucher_code || appliedVoucher.code;
-            if (vCode) {
-              await useVoucher(currentUser.id, vCode);
-            }
-            setAppliedVoucher(null);
-            refreshVouchers();
-          }
-          handleConfirmPayment(method, customerName);
-        }}
-        myVouchers={myVouchers}
-        appliedVoucher={appliedVoucher}
-        setAppliedVoucher={setAppliedVoucher}
-        userId={currentUser?.id}
-        cartItems={cart}
-      />
 
-      {/* Floating Order Status Tracker */}
-      <AnimatePresence>
-        {completedOrder && !showStatus && (
-          <motion.button
-            initial={{ x: 100, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 100, opacity: 0 }}
-            onClick={() => setShowStatus(true)}
-            className="fixed top-24 right-4 z-40 bg-white shadow-2xl border border-slate-100 rounded-2xl p-3 flex items-center gap-3 active:scale-95 transition-all"
-          >
-            <div className="bg-orange-100 p-2 rounded-xl text-[#FF6B00]">
-              <Clock size={20} className="animate-spin-slow" />
-            </div>
-            <div className="text-left pr-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Status Pesanan</p>
-              <p className="text-xs font-bold text-slate-700">{(completedOrder.status === 'PENDING' || completedOrder.status === 'Menunggu') ? 'Menunggu Verifikasi' : completedOrder.status}</p>
-            </div>
-          </motion.button>
-        )}
-      </AnimatePresence>
 
       <motion.main 
         className="max-w-4xl mx-auto px-4 space-y-8 relative z-40"
@@ -1248,22 +1256,89 @@ export default function App() {
             />
           </motion.div>
         )}
+        {activeTab === 'cart' && (
+          <motion.div 
+            key="cart"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <CartModal
+              isOpen={true}
+              onClose={() => setActiveTab('dashboard')}
+              cart={cart}
+              updateQuantity={updateQuantity}
+              onCheckout={() => setActiveTab('payment')}
+              selectedItemForNote={selectedItemForNote}
+              setSelectedItemForNote={setSelectedItemForNote}
+              addToCartWithNote={addToCartWithNote}
+              onPlayGame={handlePlayGame}
+              orderType={orderType}
+              setOrderType={setOrderType}
+              deliveryAddress={deliveryAddress}
+              setDeliveryAddress={setDeliveryAddress}
+              isInline={true}
+            />
+          </motion.div>
+        )}
+
+        {activeTab === 'payment' && (
+          <motion.div 
+            key="payment"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <PaymentModal
+              isOpen={true}
+              onClose={() => setActiveTab('cart')}
+              total={cartTotal}
+              onConfirm={async (method, customerName) => {
+                // Call use-voucher API to mark voucher as used on the backend
+                if (appliedVoucher && currentUser?.id) {
+                  const vCode = appliedVoucher.voucher_code || appliedVoucher.code;
+                  if (vCode) {
+                    await useVoucher(currentUser.id, vCode);
+                  }
+                  setAppliedVoucher(null);
+                  refreshVouchers();
+                }
+                handleConfirmPayment(method, customerName);
+              }}
+              myVouchers={myVouchers}
+              appliedVoucher={appliedVoucher}
+              setAppliedVoucher={setAppliedVoucher}
+              userId={currentUser?.id}
+              cartItems={cart}
+              orderType={orderType}
+              setOrderType={setOrderType}
+              deliveryAddress={deliveryAddress}
+              setDeliveryAddress={setDeliveryAddress}
+              isInline={true}
+            />
+          </motion.div>
+        )}
         </AnimatePresence>
       </motion.main>
 
-
-
-      <CartModal
-        isOpen={isCartOpen}
-        onClose={() => { setIsCartOpen(false); setSelectedItemForNote(null); }}
-        cart={cart}
-        updateQuantity={updateQuantity}
-        onCheckout={handleCheckout}
-        selectedItemForNote={selectedItemForNote}
-        setSelectedItemForNote={setSelectedItemForNote}
-        addToCartWithNote={addToCartWithNote}
-        onPlayGame={handlePlayGame}
-      />
+      {/* Global Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-emerald-700 text-white px-4 py-2.5 rounded-2xl shadow-lg border border-emerald-800 flex items-center gap-2.5 w-max max-w-[90vw]"
+          >
+            <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <span className="text-white text-[10px] font-black">✓</span>
+            </div>
+            <p className="font-bold text-xs whitespace-nowrap">{toastMessage}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showLoginPrompt && (
@@ -1449,6 +1524,42 @@ export default function App() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Cart Summary */}
+      <AnimatePresence>
+        {cart.length > 0 && activeTab === 'dashboard' && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-[85px] left-0 right-0 z-[45] px-4 sm:px-6 pointer-events-none"
+          >
+            <div className="max-w-md mx-auto flex items-center justify-between gap-3 pointer-events-auto">
+              <button
+                onClick={() => setActiveTab('payment')}
+                className="flex-1 bg-[#E85D04] hover:bg-[#D05303] text-white rounded-3xl p-4 flex items-center justify-between shadow-xl shadow-orange-500/20 active:scale-95 transition-all"
+              >
+                <div className="flex flex-col items-start">
+                  <span className="font-black text-sm tracking-wide">
+                    {cart.reduce((sum, item) => sum + item.quantity, 0)} item
+                  </span>
+                  <span className="text-[11px] text-white/80 font-medium">Lanjut ke Pembayaran</span>
+                </div>
+                <span className="font-extrabold text-lg">
+                  {cartTotal.toLocaleString('id-ID')}
+                </span>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('cart')}
+                className="w-[72px] h-[72px] bg-white rounded-3xl flex items-center justify-center shadow-xl shadow-slate-200/50 text-[#E85D04] active:scale-95 transition-transform"
+              >
+                <ShoppingBag size={28} strokeWidth={2.5} />
+              </button>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 

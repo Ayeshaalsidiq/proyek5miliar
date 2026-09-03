@@ -14,6 +14,11 @@ interface PaymentModalProps {
   setAppliedVoucher: React.Dispatch<React.SetStateAction<MyVoucher | null>>;
   userId?: string;
   cartItems?: any[];
+  isInline?: boolean;
+  orderType?: 'Dine In' | 'Takeaway' | 'Delivery FIT';
+  setOrderType?: (type: 'Dine In' | 'Takeaway' | 'Delivery FIT') => void;
+  deliveryAddress?: string;
+  setDeliveryAddress?: (addr: string) => void;
 }
 
 const METHOD_DETAILS: Record<string, { label: string; icon: any; color: string; detail: string; subDetail: string }> = {
@@ -36,6 +41,11 @@ export default function PaymentModal({
   setAppliedVoucher,
   userId,
   cartItems,
+  isInline = false,
+  orderType,
+  setOrderType,
+  deliveryAddress,
+  setDeliveryAddress,
 }: PaymentModalProps) {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('QRIS');
   const [customerName, setCustomerName]     = useState<string>('');
@@ -44,6 +54,7 @@ export default function PaymentModal({
   const [paymentProof, setPaymentProof]     = useState<string | null>(null);
   const fileInputRef                        = useRef<HTMLInputElement>(null);
   const [showVoucherSheet, setShowVoucherSheet] = useState(false);
+  const [showAllMethods, setShowAllMethods] = useState(false);
   const [voucherValidating, setVoucherValidating] = useState(false);
   const [voucherError, setVoucherError] = useState<string | null>(null);
 
@@ -116,47 +127,50 @@ export default function PaymentModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-6">
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={!isProcessing ? onClose : undefined}
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-          />
+        <div className={isInline ? "w-full" : "fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-6"}>
+          {!isInline && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={!isProcessing ? onClose : undefined}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+          )}
 
           {/* Modal Card */}
           <motion.div
-            initial={{ y: 60, opacity: 0, scale: 0.97 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 60, opacity: 0, scale: 0.97 }}
-            className="bg-white w-full sm:max-w-[480px] rounded-t-[36px] sm:rounded-[36px] overflow-hidden relative z-10 shadow-2xl flex flex-col"
-            style={{ maxHeight: '92vh' }}
+            initial={isInline ? { opacity: 0 } : { y: 60, opacity: 0, scale: 0.97 }}
+            animate={isInline ? { opacity: 1 } : { y: 0, opacity: 1, scale: 1 }}
+            exit={isInline ? { opacity: 0 } : { y: 60, opacity: 0, scale: 0.97 }}
+            className={`w-full flex flex-col relative z-10 ${isInline ? 'bg-transparent pb-32' : 'bg-white sm:max-w-[480px] rounded-t-[36px] sm:rounded-[36px] overflow-hidden shadow-2xl'}`}
+            style={isInline ? {} : { maxHeight: '92vh' }}
           >
             {!isProcessing ? (
               <>
                 {/* ── Sticky Header ─────────────────────────────────────── */}
-                <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-white shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-orange-50 rounded-2xl flex items-center justify-center text-[#FF6B00]">
-                      <CreditCard size={20} />
+                <div className={`p-6 sm:p-8 flex items-center justify-between shrink-0 ${!isInline ? 'border-b border-slate-50 bg-white' : 'bg-transparent'}`}>
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-[#FF6B00]">
+                      <CreditCard size={24} />
                     </div>
                     <div>
-                      <h2 className="font-black text-lg text-slate-800 leading-none">Konfirmasi Pesanan</h2>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Pilih metode & kirim pesanan</p>
+                      <h2 className={`font-display leading-none ${isInline ? 'text-3xl text-slate-800' : 'text-lg font-black text-slate-800'}`}>Konfirmasi Pesanan</h2>
+                      <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1.5">Pilih metode & kirim pesanan</p>
                     </div>
                   </div>
-                  <button onClick={onClose} className="p-2.5 hover:bg-slate-50 rounded-2xl text-slate-400 transition-colors">
-                    <X size={20} />
-                  </button>
+                  {!isInline && (
+                    <button onClick={onClose} className="p-2.5 hover:bg-slate-50 rounded-2xl text-slate-400 transition-colors">
+                      <X size={20} />
+                    </button>
+                  )}
                 </div>
 
                 {/* ── Scrollable Body ───────────────────────────────────── */}
-                <div className="overflow-y-auto flex-1" style={{ overscrollBehavior: 'contain' }}>
+                <div className={`flex-1 ${!isInline ? 'overflow-y-auto' : 'px-2 sm:px-4 space-y-2'}`} style={!isInline ? { overscrollBehavior: 'contain' } : undefined}>
                   {/* Total Card */}
-                  <div className="px-6 pt-6 pb-3">
-                    <div className="bg-gradient-to-br from-[#FF6B00] to-[#FF8C38] rounded-[32px] p-6 relative overflow-hidden shadow-lg shadow-orange-100">
+                  <div className={isInline ? 'px-4 sm:px-6 pt-4 pb-4' : 'px-6 pt-6 pb-3'}>
+                    <div className="bg-gradient-to-br from-[#FF6B00] to-[#FF8C38] rounded-[32px] p-8 sm:p-10 relative overflow-hidden shadow-lg shadow-orange-100">
                       <div className="relative z-10 flex flex-col items-center text-center">
                         <p className="text-white/70 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Total Pembayaran</p>
                         {appliedVoucher && discountAmount > 0 ? (
@@ -180,7 +194,7 @@ export default function PaymentModal({
                   </div>
 
                   {/* ── Voucher Section ───────────────────────────────────── */}
-                  <div className="px-6 pb-3">
+                  <div className={isInline ? 'px-4 sm:px-6 pb-4' : 'px-6 pb-3'}>
                     {!appliedVoucher ? (
                       <button
                         onClick={() => setShowVoucherSheet(true)}
@@ -218,9 +232,34 @@ export default function PaymentModal({
                     )}
                   </div>
 
+                  {/* ── Opsi Pemesanan ──────────────────────────────────────── */}
+                  {setOrderType && (
+                    <div className={isInline ? 'px-4 sm:px-6 pb-6' : 'px-6 pb-4'}>
+                      <div className={`bg-slate-50 p-5 rounded-[28px] border border-slate-100 ${isInline ? 'bg-white shadow-sm' : ''}`}>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1 mb-2">
+                          Opsi Pemesanan <span className="text-[#FF6B00]">*</span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            onClick={() => setOrderType('Dine In')}
+                            className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all ${orderType === 'Dine In' ? 'border-[#FF6B00] bg-orange-50 text-[#FF6B00]' : 'border-slate-100 text-slate-500 hover:border-slate-200 bg-white'}`}
+                          >
+                            Makan di Tempat
+                          </button>
+                          <button
+                            onClick={() => setOrderType('Takeaway')}
+                            className={`p-3 rounded-2xl border-2 font-bold text-sm transition-all ${orderType === 'Takeaway' ? 'border-[#FF6B00] bg-orange-50 text-[#FF6B00]' : 'border-slate-100 text-slate-500 hover:border-slate-200 bg-white'}`}
+                          >
+                            Bawa Pulang
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* ── Nama Pemesan ──────────────────────────────────────── */}
-                  <div className="px-6 pb-4">
-                    <div className="bg-slate-50 p-4 rounded-[28px] border border-slate-100">
+                  <div className={isInline ? 'px-4 sm:px-6 pb-6' : 'px-6 pb-4'}>
+                    <div className={`bg-slate-50 p-5 rounded-[28px] border border-slate-100 ${isInline ? 'bg-white shadow-sm' : ''}`}>
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1 mb-2">
                         Nama Pemesan <span className="text-[#FF6B00]">*</span>
                       </label>
@@ -234,82 +273,74 @@ export default function PaymentModal({
                     </div>
                   </div>
 
-                  {/* ── Metode Pembayaran ─────────────────────────────────── */}
-                  <div className="px-6 pb-4 space-y-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Metode Tersedia</p>
-                    {methods.map((method) => {
-                      const info       = METHOD_DETAILS[method];
-                      const isSelected = selectedMethod === method;
-                      return (
-                        <div key={method} className="space-y-2">
-                          <button
-                            onClick={() => setSelectedMethod(method)}
-                            className={`w-full flex items-center justify-between p-4 rounded-[24px] border-2 transition-all duration-200 ${
-                              isSelected
-                                ? 'border-[#FF6B00] bg-orange-50/50'
-                                : 'border-slate-100 bg-slate-50 hover:border-slate-200'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`p-2.5 rounded-xl bg-white shadow-sm ${info.color}`}>
-                                <info.icon size={20} />
-                              </div>
-                              <div className="text-left">
-                                <p className="font-black text-slate-800 text-sm">{info.label}</p>
-                                {!isSelected && (
-                                  <p className="text-[10px] text-slate-400 font-bold">{info.subDetail}</p>
-                                )}
-                              </div>
-                            </div>
-                            {isSelected ? (
-                              <div className="bg-[#FF6B00] rounded-full p-1">
-                                <CheckCircle2 className="text-white" size={14} />
-                              </div>
-                            ) : (
-                              <ChevronRight size={16} className="text-slate-300" />
-                            )}
-                          </button>
+                  {/* ── Metode Pembayaran (Selected) ────────────────────────── */}
+                  <div className={isInline ? 'px-4 sm:px-6 pb-6 space-y-4' : 'px-6 pb-4 space-y-4'}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">Metode Pembayaran</h3>
+                      <button onClick={() => setShowAllMethods(true)} className="text-[#FF6B00] text-xs font-bold hover:underline flex items-center gap-1">
+                        Lihat semua opsi <ChevronRight size={14} />
+                      </button>
+                    </div>
 
-                          {/* Detail metode yang dipilih */}
-                          <AnimatePresence>
-                            {isSelected && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="bg-white border-2 border-orange-100 rounded-[24px] p-4 flex items-center justify-between mx-1">
-                                  <div className="flex-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                                      {method === 'QRIS' ? 'Instruksi' : 'Nomor Reff'}
-                                    </p>
-                                    <p className="font-black text-slate-700 text-base">{info.detail}</p>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">{info.subDetail}</p>
-                                  </div>
-                                  {method !== 'QRIS' && method !== 'Tunai' && (
-                                    <button
-                                      onClick={() => copyToClipboard(info.detail)}
-                                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                                        copied ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                      }`}
-                                    >
-                                      {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-                                      {copied ? 'Copied' : 'Salin'}
-                                    </button>
-                                  )}
-                                  {method === 'QRIS' && (
-                                    <div className="p-1.5 bg-slate-50 rounded-lg">
-                                      <QrCode size={32} className="text-slate-400" />
-                                    </div>
-                                  )}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-[24px] flex items-center justify-between shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2.5 rounded-xl bg-white shadow-sm ${METHOD_DETAILS[selectedMethod].color}`}>
+                          {React.createElement(METHOD_DETAILS[selectedMethod].icon, { size: 20 })}
                         </div>
-                      );
-                    })}
+                        <div className="text-left">
+                          <p className="font-black text-slate-800 text-sm">{METHOD_DETAILS[selectedMethod].label}</p>
+                          <p className="text-[10px] text-slate-400 font-bold">{METHOD_DETAILS[selectedMethod].subDetail}</p>
+                        </div>
+                      </div>
+                      <div className="bg-[#FF6B00] rounded-full p-1">
+                        <CheckCircle2 className="text-white" size={14} />
+                      </div>
+                    </div>
+
+                    {/* QR Code display if QRIS is selected */}
+                    {selectedMethod === 'QRIS' && (
+                      <div className="flex flex-col items-center py-5 bg-orange-50/50 rounded-[24px] border border-orange-100">
+                        <div className="bg-white p-4 rounded-[20px] shadow-sm mb-4">
+                          <img src="/qris.png" alt="QRIS" className="w-56 h-56 object-contain rounded-xl" />
+                        </div>
+                        <p className="text-xs font-bold text-slate-500 text-center px-6 leading-relaxed">
+                          Scan QR Code ini menggunakan E-Wallet atau M-Banking Anda
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Bank Transfer Details if selected */}
+                    {(selectedMethod === 'BCA' || selectedMethod === 'Mandiri' || selectedMethod === 'GoPay' || selectedMethod === 'OVO' || selectedMethod === 'Dana') && (
+                      <div className="space-y-4 py-2 bg-orange-50/30 rounded-[24px] p-4 border border-orange-100">
+                        <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm">
+                          <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">No. Rekening / Virtual Account</p>
+                            <p className="font-bold text-slate-800 tracking-wide text-lg">{METHOD_DETAILS[selectedMethod].detail}</p>
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(METHOD_DETAILS[selectedMethod].detail)}
+                            className="p-3 bg-orange-50 text-[#FF6B00] rounded-xl hover:bg-orange-100 transition-colors active:scale-95"
+                          >
+                            {copied ? <CheckCircle2 size={20} /> : <Copy size={20} />}
+                          </button>
+                        </div>
+                        <div className="text-xs font-medium text-slate-500 bg-white p-4 rounded-2xl leading-relaxed text-center shadow-sm">
+                          Transfer tepat <span className="font-black text-[#FF6B00]">Rp {finalTotal.toLocaleString('id-ID')}</span> agar pesanan dapat diproses.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Cash Info */}
+                    {selectedMethod === 'Tunai' && (
+                      <div className="bg-amber-50 border border-amber-100 rounded-[24px] p-4 flex items-start gap-3">
+                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-amber-500 shadow-sm shrink-0 mt-0.5">
+                          <Banknote size={16} />
+                        </div>
+                        <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
+                          Tunjukkan ID pesanan kepada kasir setelah mengirim pesanan ini. Pembayaran dilakukan di kasir.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* ── Upload Bukti Transfer ────────────────────────────── */}
@@ -374,27 +405,10 @@ export default function PaymentModal({
                       )}
                     </div>
                   )}
-
-                  {/* ── Info Tunai ────────────────────────────────────────── */}
-                  {selectedMethod === 'Tunai' && (
-                    <div className="px-6 pb-6">
-                      <div className="bg-amber-50 border border-amber-100 rounded-[28px] p-5 flex items-start gap-4">
-                        <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-amber-500 shadow-sm shrink-0">
-                          <Banknote size={20} />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-black text-amber-800">Bayar di Kasir</p>
-                          <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
-                            Pesanan akan dikirim ke dapur setelah Anda menyelesaikan pembayaran langsung di kasir. Tunjukkan ID pesanan kepada petugas kasir.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* ── Sticky Footer ─────────────────────────────────────── */}
-                <div className="p-6 border-t border-slate-100 bg-white shrink-0">
+                <div className={`p-6 sm:p-8 border-t border-slate-100 shrink-0 ${isInline ? 'bg-transparent' : 'bg-white'}`}>
                   <button
                     disabled={isDisabled}
                     onClick={handlePay}
@@ -463,7 +477,7 @@ export default function PaymentModal({
                       <X size={16} />
                     </button>
                   </div>
-                  <div className="overflow-y-auto p-6 space-y-3">
+                  <div className="overflow-y-auto p-6 pb-24 space-y-3">
                     {voucherValidating && (
                       <div className="flex items-center justify-center py-4 gap-3">
                         <div className="w-5 h-5 border-2 border-orange-200 border-t-[#FF6B00] rounded-full animate-spin" />
@@ -504,6 +518,79 @@ export default function PaymentModal({
                         </button>
                       ))
                     )}
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+          {/* ── Payment Methods Bottom Sheet ───────────────────────────── */}
+          <AnimatePresence>
+            {showAllMethods && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowAllMethods(false)}
+                  className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm"
+                />
+                <motion.div
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '100%' }}
+                  transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                  className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[36px] z-50 shadow-[0_-10px_60px_rgba(0,0,0,0.15)] flex flex-col"
+                  style={{ maxHeight: '80vh' }}
+                >
+                  <div className="p-6 border-b border-slate-50 flex items-center justify-between shrink-0">
+                    <h3 className="font-black text-lg text-slate-800">Metode Pembayaran</h3>
+                    <button
+                      onClick={() => setShowAllMethods(false)}
+                      className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto p-6 pb-24 space-y-6">
+                    {[
+                      { title: 'Pembayaran Instan', methods: ['QRIS'] },
+                      { title: 'E-Wallet', methods: ['GoPay', 'OVO', 'Dana'] },
+                      { title: 'Transfer Bank', methods: ['BCA', 'Mandiri'] },
+                      { title: 'Bayar Langsung', methods: ['Tunai'] }
+                    ].map(group => (
+                      <div key={group.title} className="space-y-3">
+                        <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-[0.2em] pl-2">{group.title}</p>
+                        {group.methods.map((methodStr) => {
+                          const method = methodStr as PaymentMethod;
+                          const info = METHOD_DETAILS[method];
+                          const isSelected = selectedMethod === method;
+                          return (
+                            <button
+                              key={method}
+                              onClick={() => { setSelectedMethod(method); setShowAllMethods(false); }}
+                              className={`w-full flex items-center justify-between p-4 rounded-[24px] border-2 transition-all duration-200 ${
+                                isSelected
+                                  ? 'border-[#FF6B00] bg-orange-50/50'
+                                  : 'border-slate-100 bg-white hover:border-slate-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2.5 rounded-xl bg-slate-50 shadow-sm ${info.color}`}>
+                                  {React.createElement(info.icon, { size: 20 })}
+                                </div>
+                                <div className="text-left">
+                                  <p className="font-black text-slate-800 text-sm">{info.label}</p>
+                                </div>
+                              </div>
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-[#FF6B00]' : 'border-slate-300'}`}>
+                                {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-[#FF6B00]" />}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                 </motion.div>
               </>

@@ -2,7 +2,7 @@ import React from 'react';
 import { LayoutDashboard, ClipboardList, Ticket, User, QrCode } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export type TabType = 'dashboard' | 'orders' | 'game' | 'voucher' | 'profile';
+export type TabType = 'dashboard' | 'orders' | 'game' | 'voucher' | 'profile' | 'cart' | 'payment';
 
 interface BottomNavigationProps {
   activeTab: TabType;
