@@ -63,14 +63,14 @@ export default function VoucherRedeemModal({
 
   return (
     <AnimatePresence>
-      <div className={`fixed inset-0 z-[70] flex items-end sm:items-center justify-center ${isInline ? 'relative z-10' : ''}`}>
+      <div className={isInline ? 'relative z-10 w-full mb-8' : 'fixed inset-0 z-[70] flex items-end sm:items-center justify-center'}>
         {!isInline && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
           />
         )}
 
@@ -79,23 +79,23 @@ export default function VoucherRedeemModal({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: isInline ? 0 : '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-          className={`bg-white w-full max-w-md mx-auto ${isInline ? 'rounded-[36px] shadow-sm border border-slate-100' : 'sm:rounded-[40px] rounded-t-[40px] shadow-2xl relative z-10'} flex flex-col max-h-[92vh] sm:max-h-[88vh]`}
+          className={`bg-white w-full max-w-md mx-auto flex flex-col ${isInline ? 'rounded-[24px] shadow-sm border border-border-light h-[calc(100vh-170px)] overflow-hidden' : 'sm:rounded-[24px] rounded-t-[24px] shadow-2xl relative z-10 max-h-[92vh] sm:max-h-[88vh] overflow-hidden'}`}
         >
           {/* Header */}
-          <div className="px-6 pt-5 pb-3 flex items-center justify-between border-b border-slate-50 bg-gradient-to-r from-orange-500/5 to-amber-500/5 rounded-t-[40px]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#FF6B00] to-amber-500 rounded-2xl flex items-center justify-center shadow-md shadow-orange-100">
-                <Ticket size={18} className="text-white" />
+          <div className="p-5 sm:p-6 border-b border-border-light flex items-center justify-between bg-white shrink-0">
+            <div className="flex items-center gap-3 text-left">
+              <div className="bg-primary/10 text-primary p-2.5 rounded-xl">
+                <Ticket size={20} />
               </div>
-              <div className="text-left">
-                <h2 className="font-black text-base text-slate-800 leading-none">Dompet Voucher</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Voucher Anda</p>
+              <div>
+                <h3 className="font-black text-text-dark text-lg sm:text-xl tracking-tight">Voucher Anda</h3>
+                <p className="text-text-light text-xs font-semibold mt-0.5">Klaim dan gunakan promo menarik</p>
               </div>
             </div>
             {!isInline && (
               <button
                 onClick={onClose}
-                className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 active:scale-90 transition-all cursor-pointer"
+                className="w-8 h-8 bg-slate-50 hover:bg-slate-100 rounded-full flex items-center justify-center text-text-light hover:text-text-dark active:scale-90 transition-all cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -103,29 +103,29 @@ export default function VoucherRedeemModal({
           </div>
 
           {/* Sub-tab Navigation */}
-          <div className="px-6 pt-4 pb-2 bg-slate-50">
-            <div className="bg-slate-200/50 p-1.5 rounded-2xl flex gap-1">
+          <div className="px-6 pt-4 bg-white border-b border-border-light shrink-0">
+            <div className="flex gap-6">
               <button
                 onClick={() => setActiveSubTab('my_vouchers')}
-                className={`flex-1 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-                  activeSubTab === 'my_vouchers' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                className={`pb-3 font-bold text-[13px] border-b-[3px] transition-colors ${
+                  activeSubTab === 'my_vouchers' ? 'border-primary text-primary' : 'border-transparent text-text-light hover:text-text-dark'
                 }`}
               >
-                <Ticket size={14} /> Voucher Saya
+                Voucher Saya
               </button>
               <button
                 onClick={() => setActiveSubTab('promo_code')}
-                className={`flex-1 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-                  activeSubTab === 'promo_code' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                className={`pb-3 font-bold text-[13px] border-b-[3px] transition-colors ${
+                  activeSubTab === 'promo_code' ? 'border-primary text-primary' : 'border-transparent text-text-light hover:text-text-dark'
                 }`}
               >
-                <Sparkles size={14} /> Klaim Kode
+                Klaim Kode
               </button>
             </div>
           </div>
 
           {/* Body Content */}
-          <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50 relative min-h-[350px]">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-6 pb-32 bg-slate-50 relative min-h-0">
             <AnimatePresence mode="wait">
               {/* TAB 1: VOUCHER SAYA */}
               {activeSubTab === 'my_vouchers' && (
@@ -137,39 +137,42 @@ export default function VoucherRedeemModal({
                   className="space-y-4"
                 >
                   {myVouchers.filter(v => !v.used).length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-slate-200 rounded-[28px] bg-white">
-                      <div className="bg-orange-50 p-6 rounded-full text-[#FF6B00] mb-4">
-                        <Ticket size={36} />
+                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-white border border-border-light rounded-2xl shadow-sm">
+                      <div className="bg-primary/10 p-5 rounded-full text-primary mb-4">
+                        <Ticket size={32} />
                       </div>
-                      <h4 className="font-black text-slate-700 text-sm">Dompet Kosong</h4>
-                      <p className="text-slate-400 text-[10px] font-semibold mt-2 max-w-xs leading-relaxed">
-                        Anda belum memiliki voucher aktif.
+                      <h4 className="font-bold text-text-dark text-sm">Dompet Kosong</h4>
+                      <p className="text-text-light text-[11px] font-medium mt-1.5 max-w-xs leading-relaxed">
+                        Anda belum memiliki voucher aktif saat ini.
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between pl-1">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          Voucher Aktif ({myVouchers.filter(v => !v.used).length})
-                        </p>
-                      </div>
                       <div className="grid grid-cols-1 gap-3">
                         {myVouchers.filter(v => !v.used).map((v) => (
                           <div 
                             key={v.id}
                             onClick={() => setSelectedVoucher(v)}
-                            className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex cursor-pointer hover:shadow-md transition-shadow active:scale-[0.98]"
+                            className="bg-white border border-border-light rounded-2xl flex overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.98]"
                           >
-                            <div className={`w-24 shrink-0 flex flex-col items-center justify-center text-white p-2 text-center bg-gradient-to-br ${v.color || 'from-[#FF6B00] to-yellow-500'}`}>
-                              <span className="text-xl mb-1">{v.icon || '🎫'}</span>
-                              <span className="font-black text-[10px] tracking-widest uppercase">{v.discount_price ? `Rp${v.discount_price/1000}K` : 'Diskon'}</span>
+                            {/* Left Graphic */}
+                            <div className="w-[90px] sm:w-[100px] bg-slate-50 flex flex-col items-center justify-center p-3 border-r border-dashed border-border-light shrink-0 relative overflow-hidden">
+                              <div className="absolute top-0 bottom-0 -left-1 w-2 bg-primary" />
+                              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mb-1.5 text-primary">
+                                {v.icon ? <span>{v.icon}</span> : <Ticket size={20} />}
+                              </div>
+                              <span className="font-black text-primary text-[10px] sm:text-[11px] uppercase tracking-wider text-center line-clamp-1">{v.discount_price ? `Rp${v.discount_price/1000}K` : 'Promo'}</span>
                             </div>
-                            <div className="flex-1 p-3">
-                              <h4 className="font-black text-slate-800 text-sm truncate leading-tight">{v.name || v.title}</h4>
-                              <p className="text-slate-500 text-[10px] font-semibold mt-0.5 line-clamp-2 leading-tight">{v.description}</p>
-                              <div className="flex items-center gap-1 mt-2 text-slate-400">
-                                <Clock size={10} />
-                                <span className="text-[9px] font-bold">Kode: {v.voucher_code}</span>
+                            
+                            {/* Right Info */}
+                            <div className="flex-1 p-3.5 sm:p-4 flex flex-col justify-between min-w-0">
+                              <div>
+                                <h4 className="font-bold text-text-dark text-[13px] sm:text-sm truncate leading-tight">{v.name || v.title}</h4>
+                                <p className="text-text-light text-[10px] sm:text-[11px] font-medium mt-1 line-clamp-2 leading-snug">{v.description}</p>
+                              </div>
+                              <div className="mt-3 flex items-center justify-between">
+                                <span className="text-[9px] sm:text-[10px] font-bold text-text-light bg-slate-100 px-2 py-0.5 rounded uppercase border border-border-light">{v.voucher_code}</span>
+                                <span className="text-[10px] sm:text-[11px] font-bold text-primary flex items-center gap-0.5">Gunakan <ChevronRight size={14} /></span>
                               </div>
                             </div>
                           </div>
@@ -187,26 +190,26 @@ export default function VoucherRedeemModal({
                   initial={{ opacity: 0, x: -15 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 15 }}
-                  className="space-y-5"
+                  className="space-y-4"
                 >
                   {status !== 'success' ? (
-                    <div className="space-y-5">
-                      <div className="bg-white border border-slate-200 rounded-[28px] p-5 flex gap-4 shadow-sm">
-                        <div className="bg-[#FF6B00] text-white p-3 rounded-2xl h-fit shadow-md shadow-orange-100 flex items-center justify-center shrink-0">
-                          <Sparkles size={20} />
+                    <div className="space-y-4">
+                      <div className="bg-white border border-border-light rounded-2xl p-4 sm:p-5 flex gap-4 shadow-sm items-center">
+                        <div className="bg-primary/10 text-primary p-3 rounded-xl h-fit flex items-center justify-center shrink-0">
+                          <Sparkles size={24} />
                         </div>
                         <div>
-                          <h4 className="font-extrabold text-slate-800 text-xs sm:text-sm">Punya Kode Spesial?</h4>
-                          <p className="text-slate-500 text-[10px] font-semibold leading-relaxed mt-1">
-                            Masukkan kode voucher untuk menambahkannya ke dompet.
+                          <h4 className="font-extrabold text-text-dark text-sm">Punya Kode Promo?</h4>
+                          <p className="text-text-light text-[11px] font-medium mt-0.5 leading-snug">
+                            Klaim kode unikmu untuk mendapatkan penawaran spesial.
                           </p>
                         </div>
                       </div>
 
-                      <form onSubmit={handleRedeem} className="space-y-4 bg-white p-5 rounded-[28px] border border-slate-200 shadow-sm">
+                      <form onSubmit={handleRedeem} className="bg-white p-4 sm:p-5 rounded-2xl border border-border-light shadow-sm">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">
-                            Kode Voucher
+                          <label className="text-[11px] font-bold text-text-dark">
+                            Masukkan Kode Voucher
                           </label>
                           <div className="relative">
                             <input
@@ -215,11 +218,11 @@ export default function VoucherRedeemModal({
                               value={code}
                               onChange={(e) => setCode(e.target.value)}
                               disabled={status === 'validating'}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 font-black text-slate-800 uppercase tracking-widest text-sm outline-none focus:bg-white focus:border-[#FF6B00] transition-all disabled:opacity-60"
+                              className="w-full bg-slate-50 border border-border-light rounded-xl px-4 py-3 font-black text-text-dark uppercase tracking-widest text-sm outline-none focus:bg-white focus:border-primary transition-all disabled:opacity-60"
                             />
                             {status === 'validating' && (
                               <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
-                                <div className="w-5 h-5 border-2 border-orange-200 border-t-[#FF6B00] rounded-full animate-spin" />
+                                <div className="w-5 h-5 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
                               </div>
                             )}
                           </div>
@@ -229,19 +232,19 @@ export default function VoucherRedeemModal({
                           <motion.div
                             initial={{ opacity: 0, y: -5 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-red-50 border border-red-100 p-3.5 rounded-2xl flex items-start gap-3 text-red-700"
+                            className="bg-rose-50 border border-rose-100 p-3 rounded-xl flex items-start gap-2.5 text-rose-600 mt-4"
                           >
                             <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                            <p className="text-[11px] font-bold leading-relaxed">{errorMessage}</p>
+                            <p className="text-[11px] font-bold leading-snug">{errorMessage}</p>
                           </motion.div>
                         )}
 
                         <button
                           type="submit"
                           disabled={!code.trim() || status === 'validating'}
-                          className="w-full bg-[#FF6B00] hover:bg-[#e66000] text-white py-3.5 rounded-2xl font-black text-sm uppercase shadow-lg shadow-orange-100 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
+                          className="w-full mt-4 bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-bold text-sm shadow-sm disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
                         >
-                          {status === 'validating' ? 'Memvalidasi...' : 'Klaim Kode'}
+                          {status === 'validating' ? 'Memvalidasi...' : 'Klaim Kode Sekarang'}
                         </button>
                       </form>
                     </div>
@@ -251,28 +254,26 @@ export default function VoucherRedeemModal({
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className="flex flex-col items-center py-6 text-center space-y-5 bg-white border border-slate-200 rounded-[36px] p-6 shadow-sm"
+                      className="flex flex-col items-center py-8 text-center space-y-4 bg-white border border-border-light rounded-2xl p-6 shadow-sm"
                     >
-                      <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shadow-inner">
-                        <CheckCircle2 size={36} />
+                      <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500">
+                        <CheckCircle2 size={40} strokeWidth={2.5} />
                       </div>
-                      <div className="space-y-1">
-                        <h3 className="text-lg font-black text-slate-800 leading-tight">Berhasil!</h3>
-                        <p className="text-slate-500 text-[11px] font-semibold leading-relaxed max-w-[200px] mx-auto">
-                          Kode berhasil ditukarkan dan ditambahkan ke dompet voucher Anda.
+                      <div className="space-y-1.5">
+                        <h3 className="text-lg font-black text-text-dark">Klaim Berhasil!</h3>
+                        <p className="text-text-light text-[11px] font-medium max-w-[220px] mx-auto leading-snug">
+                          Voucher berhasil ditambahkan ke dompet Anda.
                         </p>
                       </div>
-                      <div className="flex w-full gap-2 pt-2">
-                        <button
-                          onClick={() => {
-                            resetState();
-                            setActiveSubTab('my_vouchers');
-                          }}
-                          className="flex-1 bg-[#FF6B00] text-white py-3 rounded-2xl font-black text-xs uppercase shadow-md active:scale-95 transition-all"
-                        >
-                          Lihat Dompet
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => {
+                          resetState();
+                          setActiveSubTab('my_vouchers');
+                        }}
+                        className="mt-2 w-full bg-slate-100 hover:bg-slate-200 text-text-dark py-3 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all"
+                      >
+                        Lihat Voucher Saya
+                      </button>
                     </motion.div>
                   )}
                 </motion.div>
@@ -281,47 +282,62 @@ export default function VoucherRedeemModal({
           </div>
         </motion.div>
 
-        {/* Barcode Modal */}
+        {/* Barcode Modal (Voucher Detail) */}
         <AnimatePresence>
           {selectedVoucher && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-4"
+              className="fixed inset-0 z-[80] flex items-center justify-center p-4"
             >
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setSelectedVoucher(null)}
-                className="absolute inset-0 bg-slate-900/70 backdrop-blur-md"
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
               />
               <motion.div
-                initial={{ y: 60, opacity: 0, scale: 0.95 }}
+                initial={{ y: 20, opacity: 0, scale: 0.95 }}
                 animate={{ y: 0, opacity: 1, scale: 1 }}
-                exit={{ y: 60, opacity: 0, scale: 0.95 }}
-                className="bg-white w-full max-w-sm rounded-[36px] overflow-hidden shadow-2xl relative z-10"
+                exit={{ y: 20, opacity: 0, scale: 0.95 }}
+                className="bg-white w-full max-w-[320px] rounded-[24px] overflow-hidden shadow-2xl relative z-10"
               >
-                <div className={`bg-gradient-to-r ${selectedVoucher.color || 'from-[#FF6B00] to-yellow-500'} px-6 pt-8 pb-10 text-center relative`}>
+                {/* Header Ticket Hole Graphic */}
+                <div className="bg-primary/10 px-6 pt-8 pb-10 text-center relative border-b border-dashed border-primary/20">
                   <button
                     onClick={() => setSelectedVoucher(null)}
-                    className="absolute top-4 right-4 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white active:scale-90 transition-all"
+                    className="absolute top-4 right-4 w-8 h-8 bg-white rounded-full flex items-center justify-center text-text-light hover:text-text-dark active:scale-90 transition-all shadow-sm"
                   >
                     <X size={16} />
                   </button>
-                  <p className="text-4xl mb-2">{selectedVoucher.icon || '🎫'}</p>
-                  <h3 className="text-white font-black text-lg leading-tight">{selectedVoucher.name || selectedVoucher.title}</h3>
-                </div>
-                <div className="px-6 pt-6 pb-8 space-y-5 text-center">
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Kode Voucher</p>
-                    <p className="text-2xl font-black text-slate-800 tracking-wider font-mono">{selectedVoucher.voucher_code}</p>
+                  
+                  {/* Fake Ticket Cutouts */}
+                  <div className="absolute -bottom-3 -left-3 w-6 h-6 bg-white rounded-full" />
+                  <div className="absolute -bottom-3 -right-3 w-6 h-6 bg-white rounded-full" />
+                  
+                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 text-primary shadow-sm border border-border-light/50">
+                    {selectedVoucher.icon ? <span className="text-3xl">{selectedVoucher.icon}</span> : <Ticket size={32} />}
                   </div>
-                  <p className="text-[11px] text-slate-500 font-semibold">{selectedVoucher.description}</p>
+                  <h3 className="text-text-dark font-black text-base sm:text-lg leading-tight">{selectedVoucher.name || selectedVoucher.title}</h3>
+                </div>
+                
+                <div className="px-6 pt-8 pb-6 text-center bg-white relative">
+                  <div className="bg-slate-50 border border-border-light rounded-xl p-4 mb-4 relative overflow-hidden">
+                    <p className="text-[10px] text-text-light font-bold uppercase tracking-widest mb-1.5">Kode Promo</p>
+                    <p className="text-xl sm:text-2xl font-black text-text-dark tracking-wider font-mono select-all">
+                      {selectedVoucher.voucher_code}
+                    </p>
+                  </div>
+                  
+                  <p className="text-[11px] text-text-light font-medium mb-6 leading-relaxed">
+                    {selectedVoucher.description}
+                  </p>
+                  
                   <button
                     onClick={() => setSelectedVoucher(null)}
-                    className="w-full bg-slate-900 text-white py-3.5 rounded-2xl font-black text-sm active:scale-95 transition-all"
+                    className="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-xl font-bold text-sm active:scale-95 transition-all shadow-sm"
                   >
                     Tutup
                   </button>

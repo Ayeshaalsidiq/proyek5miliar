@@ -1,4 +1,6 @@
-import { MapPin, Search, Star, LogOut, History, User, Gamepad2, Ticket } from 'lucide-react';
+import { MapPin, Search, Coins, LogOut, History, User, Gamepad2, Ticket, ShoppingCart } from 'lucide-react';
+import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'motion/react';
+import { useState } from 'react';
 
 interface HeaderProps {
   tableNumber: string;
@@ -11,19 +13,61 @@ interface HeaderProps {
   onLogout: () => void;
   onProfileClick: () => void;
   activeTab?: string;
+  cartCount: number;
+  onCartClick: () => void;
 }
 
-export default function Header({ tableNumber, isGuest, zoneName, searchQuery, setSearchQuery, points, onPointsClick, onLogout, onProfileClick, activeTab = 'dashboard' }: HeaderProps) {
+export default function Header({ tableNumber, isGuest, zoneName, searchQuery, setSearchQuery, points, onPointsClick, onLogout, onProfileClick, activeTab = 'dashboard', cartCount, onCartClick }: HeaderProps) {
+  const { scrollY } = useScroll();
+  const [hidden, setHidden] = useState(false);
+
+  useMotionValueEvent(scrollY, "change", (latest) => {
+    if (latest > 20) {
+      setHidden(true);
+    } else {
+      setHidden(false);
+    }
+  });
+
+  const isDashboard = activeTab === 'dashboard';
+
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md px-4 py-3 border-b border-slate-100 flex flex-col gap-3">
-      <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-[#FF6B00] rounded-xl flex items-center justify-center shadow-lg shadow-orange-200">
-            <h1 className="font-display text-white text-lg leading-none">M</h1>
-          </div>
-          <div className="flex flex-col">
-            <h1 className="font-display text-base font-extrabold text-slate-800 leading-none tracking-tight">NGOLAB BAKSO</h1>
-            <h1 className="font-display text-sm font-bold text-[#FF6B00] leading-none mt-0.5">MAS YANTO</h1>
+    <motion.header 
+      initial={false}
+      animate={{
+        y: hidden ? "-100%" : 0,
+        paddingBottom: isDashboard ? 80 : 16,
+        borderBottomLeftRadius: isDashboard ? 32 : 24,
+        borderBottomRightRadius: isDashboard ? 32 : 24,
+      }}
+      transition={{ duration: 0.4, ease: "easeInOut" }}
+      className="sticky top-0 z-30 flex flex-col shadow-sm overflow-hidden bg-white"
+      style={{
+        paddingTop: '0.75rem',
+        paddingLeft: '1rem',
+        paddingRight: '1rem',
+      }}
+    >
+      <motion.div 
+        className="absolute inset-0 bg-gradient-to-b from-[#FF6B00] to-[#FF9F0D] z-0 pointer-events-none"
+        initial={false}
+        animate={{ 
+          y: isDashboard ? 0 : "-100%",
+          opacity: isDashboard ? 1 : 0
+        }}
+        transition={{ duration: 0.4, ease: "easeInOut" }}
+      />
+      
+      <motion.div 
+        className="relative z-10 max-w-4xl mx-auto w-full flex items-center justify-between gap-3"
+        animate={{
+          paddingBottom: isDashboard ? 0 : 4,
+        }}
+        transition={{ duration: 0.4, ease: "easeInOut" }}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden transition-all duration-300 ${isDashboard ? 'border-[3px] border-white' : 'border border-slate-200'}`}>
+            <img src="/logo-ngolab.png" alt="Ngolab Logo" className="w-full h-full object-contain rounded-full p-0.5" />
           </div>
         </div>
 
@@ -32,22 +76,45 @@ export default function Header({ tableNumber, isGuest, zoneName, searchQuery, se
           {!isGuest && (
             <button 
               onClick={onPointsClick}
-              className="bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-[15px] items-center gap-2 hover:bg-amber-100/50 transition-colors cursor-pointer active:scale-95 hidden md:flex"
+              className={`backdrop-blur-sm border px-3 py-1.5 rounded-[15px] items-center gap-2 transition-colors cursor-pointer active:scale-95 hidden md:flex ${
+                isDashboard 
+                  ? 'bg-white/20 border-white/30 hover:bg-white/30 text-white' 
+                  : 'bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-700'
+              }`}
             >
-              <div className="bg-amber-400 p-1 rounded-full text-white">
-                <Star size={10} fill="currentColor" strokeWidth={0} />
+              <div className="bg-white p-1 rounded-full text-orange-500 shadow-sm">
+                <Coins size={12} strokeWidth={2.5} />
               </div>
               <div className="text-left">
-                <p className="text-[8px] text-amber-600 font-black uppercase leading-none">Poin Saya</p>
-                <p className="font-bold text-[11px] text-amber-700 leading-tight">{points.toLocaleString('id-ID')}</p>
+                <p className={`text-[8px] font-black uppercase leading-none opacity-90 ${isDashboard ? 'text-white' : 'text-slate-500'}`}>Poin Saya</p>
+                <p className="font-bold text-[11px] leading-tight">{points.toLocaleString('id-ID')}</p>
               </div>
             </button>
           )}
 
+          <button 
+            onClick={onCartClick}
+            className={`w-10 h-10 backdrop-blur-sm rounded-xl flex items-center justify-center transition-colors active:scale-95 border relative ${
+              isDashboard 
+                ? 'bg-white/20 text-white hover:bg-white/30 border-white/30' 
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
+            }`}
+            title="Keranjang"
+          >
+            <ShoppingCart size={18} />
+            {cartCount > 0 && (
+              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></span>
+            )}
+          </button>
+
           {!isGuest && (
             <button 
               onClick={onProfileClick}
-              className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl items-center justify-center hover:bg-slate-100 transition-colors active:scale-95 border border-slate-200 hidden md:flex"
+              className={`w-10 h-10 backdrop-blur-sm rounded-xl items-center justify-center transition-colors active:scale-95 border hidden md:flex ${
+                isDashboard 
+                  ? 'bg-white/20 text-white hover:bg-white/30 border-white/30' 
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
+              }`}
               title="Profil Saya"
             >
               <User size={18} />
@@ -56,26 +123,38 @@ export default function Header({ tableNumber, isGuest, zoneName, searchQuery, se
 
           <button 
             onClick={onLogout}
-            className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-100 transition-colors active:scale-95 border border-red-100"
+            className={`w-10 h-10 backdrop-blur-sm rounded-xl flex items-center justify-center transition-colors active:scale-95 border ${
+              isDashboard 
+                ? 'bg-white/20 text-white hover:bg-white/30 border-white/30' 
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
+            }`}
             title="Keluar"
           >
             <LogOut size={18} />
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      {activeTab === 'dashboard' && tableNumber !== 'Belum Scan' && tableNumber !== 'Mode Tamu' && (
-        <div className="max-w-4xl mx-auto w-full relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#FF6B00] transition-colors" size={16} />
-          <input
-            type="text"
-            placeholder="Mau makan apa hari ini?"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-100 border-none rounded-2xl py-3 pl-12 pr-4 text-xs font-medium focus:ring-2 focus:ring-[#FF6B00]/20 outline-none transition-all placeholder:text-slate-400"
-          />
-        </div>
-      )}
-    </header>
+      <AnimatePresence>
+        {isDashboard && tableNumber !== 'Belum Scan' && tableNumber !== 'Mode Tamu' && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ duration: 0.3 }}
+            className="max-w-4xl mx-auto w-full relative group z-10"
+          >
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-light group-focus-within:text-primary transition-colors" size={16} />
+            <input
+              type="text"
+              placeholder="Mau makan apa hari ini?"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-50 border border-border-light rounded-2xl py-3 pl-12 pr-4 text-xs font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-text-light text-text-dark"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.header>
   );
 }

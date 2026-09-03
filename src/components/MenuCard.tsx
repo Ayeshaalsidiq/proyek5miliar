@@ -11,7 +11,7 @@ const MenuCard: React.FC<MenuCardProps> = ({ item, onAdd }) => {
   return (
     <div 
       onClick={() => item.inStock && onAdd(item)}
-      className={`bg-white rounded-[25px] overflow-hidden card-shadow border border-slate-50 flex flex-col group active:scale-95 transition-all duration-300 ${item.inStock ? 'cursor-pointer' : 'cursor-not-allowed grayscale-[0.8] opacity-75'}`}
+      className={`bg-white rounded-2xl overflow-hidden shadow-sm border border-border-light flex flex-col group active:scale-95 transition-all duration-300 ${item.inStock ? 'cursor-pointer hover:shadow-md hover:border-primary/30' : 'cursor-not-allowed grayscale-[0.8] opacity-75'}`}
     >
       <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
         <img
@@ -22,7 +22,7 @@ const MenuCard: React.FC<MenuCardProps> = ({ item, onAdd }) => {
         />
         {item.isPromo && item.inStock && (
           <div className="absolute top-2 left-2">
-            <span className="text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 bg-[#FF6B00] rounded-lg shadow-lg">Promo</span>
+            <span className="text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 bg-primary rounded-lg shadow-sm">Promo</span>
           </div>
         )}
         {item.isAirGesture && item.inStock && (
@@ -41,10 +41,10 @@ const MenuCard: React.FC<MenuCardProps> = ({ item, onAdd }) => {
       
       <div className="p-4 flex flex-col flex-1 justify-between gap-1">
         <div>
-          <h3 className={`font-bold text-slate-800 text-sm leading-snug line-clamp-2 ${!item.inStock ? 'text-slate-400' : ''}`}>
+          <h3 className={`font-bold text-text-dark text-sm leading-snug line-clamp-2 ${!item.inStock ? 'text-slate-400' : ''}`}>
             {item.name}
           </h3>
-          <p className="font-bold text-slate-500 text-[10px] uppercase tracking-wider mt-1">{item.category}</p>
+          <p className="font-bold text-text-light text-[10px] uppercase tracking-wider mt-1">{item.category}</p>
         </div>
 
         <div className="flex flex-col gap-1 mt-auto">
@@ -68,20 +68,20 @@ const MenuCard: React.FC<MenuCardProps> = ({ item, onAdd }) => {
             <div className="flex flex-col">
               {item.discountPrice ? (
                 <>
-                  <p className="text-[10px] text-slate-400 line-through">
+                  <p className="text-[10px] text-text-light line-through">
                     Rp {item.price.toLocaleString('id-ID')}
                   </p>
-                  <p className={`font-bold text-sm ${item.inStock ? 'text-[#FF6B00]' : 'text-slate-400'}`}>
+                  <p className={`font-bold text-sm ${item.inStock ? 'text-primary' : 'text-slate-400'}`}>
                     Rp {item.discountPrice.toLocaleString('id-ID')}
                   </p>
                 </>
               ) : (
-                <p className={`font-bold text-sm ${item.inStock ? 'text-[#FF6B00]' : 'text-slate-400'}`}>
+                <p className={`font-bold text-sm ${item.inStock ? 'text-primary' : 'text-slate-400'}`}>
                   Rp {item.price.toLocaleString('id-ID')}
                 </p>
               )}
             </div>
-            <div className={`${item.inStock ? 'bg-[#FF6B00] shadow-orange-100 group-hover:bg-[#e66000]' : 'bg-slate-200'} text-white p-1.5 rounded-xl shadow-md transition-colors`}>
+            <div className={`${item.inStock ? 'bg-primary shadow-sm group-hover:bg-primary-hover' : 'bg-slate-200'} text-white p-1.5 rounded-xl transition-colors`}>
               <Plus size={16} />
             </div>
           </div>

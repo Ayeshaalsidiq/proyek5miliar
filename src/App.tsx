@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ShoppingBag, Clock, LogIn, Bell, QrCode, X } from 'lucide-react';
+import { ShoppingBag, Clock, LogIn, Bell, QrCode, X, Coins, Ticket, History, Gamepad2 } from 'lucide-react';
 import { MenuItem, CartItem, Category, Order, PaymentMethod, Voucher, MyVoucher } from './types';
 import Header from './components/Header';
 import CategoryFilter from './components/CategoryFilter';
@@ -72,33 +72,28 @@ export default function App() {
     }
   });
   const [myVouchers, setMyVouchers] = useState<MyVoucher[]>(() => {
-    try {
-      // One-time clear of active vouchers as requested by the user
-      const clearedFlag = localStorage.getItem('maslahat_vouchers_cleared_once');
-      if (!clearedFlag) {
-        localStorage.removeItem('maslahat_my_vouchers');
-        localStorage.setItem('maslahat_vouchers_cleared_once', 'true');
-        return [];
-      }
+    const dummyVouchers = Array.from({ length: 12 }).map((_, i) => ({
+      id: `test-scroll-${i}`,
+      voucher_code: `NGOLAB${i + 1}K`,
+      name: `Voucher Diskon Spesial ${i + 1}`,
+      description: `Potongan ekstra untuk menu favorit Anda. Berlaku kelipatan dengan syarat dan ketentuan yang berlaku pada semua outlet Ngolab.`,
+      discount_price: (i + 1) * 2000,
+      used: false,
+      icon: '🎫'
+    }));
 
+    try {
       const saved = localStorage.getItem('maslahat_my_vouchers');
-      if (!saved) return [];
+      if (!saved) return dummyVouchers;
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        // Filter out dummy/mock vouchers
-        const cleaned = parsed.filter((v: any) => {
-          const isDummy = ['v1', 'v2', 'v3', 'v4'].includes(v.id) ||
-                          (v.id && (v.id.startsWith('redeem-') || /^v\d+$/.test(v.id)));
-          return !isDummy && !v.used;
-        });
-        if (cleaned.length !== parsed.length) {
-          localStorage.setItem('maslahat_my_vouchers', JSON.stringify(cleaned));
-        }
-        return cleaned;
+        const cleaned = parsed.filter((v: any) => !v.used);
+        // Gabungkan voucher asli yang belum dipakai dengan dummy
+        return [...cleaned, ...dummyVouchers];
       }
-      return [];
+      return dummyVouchers;
     } catch {
-      return [];
+      return dummyVouchers;
     }
   });
   const [appliedVoucher, setAppliedVoucher] = useState<MyVoucher | null>(null);
@@ -962,6 +957,8 @@ export default function App() {
         onLogout={handleLogout}
         onProfileClick={() => setActiveTab('profile')}
         activeTab={activeTab}
+        cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
+        onCartClick={() => setIsCartOpen(true)}
       />
 
       <PointsModal
@@ -1018,115 +1015,119 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <main className="max-w-4xl mx-auto px-4 mt-6 space-y-8">
-        {activeTab === 'dashboard' && (
-          <>
-            {tableNumber === 'Mode Tamu' || tableNumber === 'Belum Scan' ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white border border-slate-100 rounded-[32px] p-8 sm:p-12 text-center shadow-xl shadow-slate-100/50 flex flex-col items-center max-w-xl mx-auto my-8 relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full blur-3xl -z-10" />
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl -z-10" />
-
-                <div className="relative w-36 h-36 mb-8 flex items-center justify-center">
-                  <motion.div
-                    animate={{ scale: [1, 1.05, 1], rotate: [0, 5, -5, 0] }}
-                    transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                    className="bg-gradient-to-tr from-orange-500 to-amber-500 text-white p-7 rounded-[32px] shadow-lg shadow-orange-500/25 relative z-10"
-                  >
-                    <QrCode size={56} strokeWidth={1.5} />
-                  </motion.div>
-                  <motion.div
-                    animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }}
-                    transition={{ repeat: Infinity, duration: 2, ease: "easeOut" }}
-                    className="absolute inset-0 border-2 border-orange-500/30 rounded-[44px]"
-                  />
-                  <motion.div
-                    animate={{ scale: [1, 1.7, 1], opacity: [0.15, 0, 0.15] }}
-                    transition={{ repeat: Infinity, duration: 2, delay: 0.5, ease: "easeOut" }}
-                    className="absolute inset-0 border border-orange-500/20 rounded-[56px]"
-                  />
-                </div>
-
-                <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-3">
-                  Scan QR di Meja Anda
-                </h3>
-                <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-sm mb-8">
-                  Pindai kode QR yang tertera di meja atau lokasi Anda terlebih dahulu untuk melihat menu hidangan dan mulai memesan.
-                </p>
-
-                <button
-                  onClick={() => {
-                    setScanResult(null);
-                    setScannerError(null);
-                    setShowScanner(true);
-                  }}
-                  className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-sm uppercase tracking-wider px-8 py-4 rounded-2xl shadow-lg shadow-orange-500/25 active:scale-95 transition-all flex items-center justify-center gap-3 cursor-pointer"
+      <motion.main 
+        className="max-w-4xl mx-auto px-4 space-y-8 relative z-40"
+        animate={{ 
+          marginTop: activeTab === 'dashboard' ? -64 : 0 
+        }}
+        transition={{ duration: 0.4, ease: "easeInOut" }}
+      >
+        <AnimatePresence mode="wait">
+          {activeTab === 'dashboard' && (
+            <motion.div 
+              key="dashboard"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+            {!isGuest && (
+              <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-2 relative z-40">
+                <button 
+                  onClick={() => setIsPointsModalOpen(true)}
+                  className="bg-white border border-border-light rounded-2xl p-2 sm:p-3 flex flex-col items-center justify-start gap-2 hover:shadow-md transition-all active:scale-95 shadow-sm"
                 >
-                  <QrCode size={18} />
-                  Scan QR Code Sekarang
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-50 rounded-full flex items-center justify-center text-primary shadow-sm border border-orange-100">
+                    <Coins size={20} />
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-text-dark text-center leading-tight">Poin<br/><span className="text-primary">{points.toLocaleString('id-ID')}</span></span>
+                </button>
+                
+                <button 
+                  onClick={() => setActiveTab('voucher')}
+                  className="bg-white border border-border-light rounded-2xl p-2 sm:p-3 flex flex-col items-center justify-start gap-2 hover:shadow-md transition-all active:scale-95 shadow-sm"
+                >
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-50 rounded-full flex items-center justify-center text-red-500 shadow-sm border border-red-100">
+                    <Ticket size={20} />
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-text-dark text-center leading-tight">Katalog<br/>Promo</span>
+                </button>
+                
+                <button 
+                  onClick={() => setIsPointsModalOpen(true)}
+                  className="bg-white border border-border-light rounded-2xl p-2 sm:p-3 flex flex-col items-center justify-start gap-2 hover:shadow-md transition-all active:scale-95 shadow-sm"
+                >
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 shadow-sm border border-blue-100">
+                    <History size={20} />
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-text-dark text-center leading-tight">Riwayat<br/>Koin</span>
                 </button>
 
-                <p className="mt-8 text-xs text-slate-400 font-semibold flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Sistem Pemesanan Mandiri Maslahat
-                </p>
-              </motion.div>
-            ) : (
-              <>
-                {tableNumber !== 'Mode Tamu' && tableNumber !== 'Belum Scan' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-transparent border border-orange-500/20 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm backdrop-blur-sm"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="bg-[#FF6B00] text-white p-3.5 rounded-2xl shadow-md shadow-orange-500/20">
-                        <QrCode size={24} />
-                      </div>
-                      <div className="text-left">
-                        <h3 className="font-black text-slate-800 text-base">
-                          {(() => {
-                            const base = /^\d+$/.test(tableNumber) ? `Meja ${tableNumber}` : tableNumber;
-                            return zoneName && zoneName !== 'Area Meja' ? `Terhubung ke ${base} (${zoneName})` : `Terhubung ke ${base}`;
-                          })()}
-                        </h3>
-                        <p className="text-slate-500 text-xs font-semibold mt-0.5">
-                          Pesanan akan diantar ke {/^\d+$/.test(tableNumber) ? 'meja' : 'lokasi'} ini. Salah nomor meja/lokasi? Scan QR kembali.
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setScanResult(null);
-                        setScannerError(null);
-                        setShowScanner(true);
-                      }}
-                      className="bg-[#FF6B00] hover:bg-[#e66000] text-white font-black text-xs uppercase tracking-wider px-6 py-3.5 rounded-2xl shadow-lg shadow-orange-500/20 active:scale-95 transition-all self-start sm:self-center flex items-center gap-2 cursor-pointer"
-                    >
-                      <QrCode size={16} />
-                      Scan Ulang
-                    </button>
-                  </motion.div>
-                )}
+                <button 
+                  onClick={() => setActiveTab('game')}
+                  className="bg-white border border-border-light rounded-2xl p-2 sm:p-3 flex flex-col items-center justify-start gap-2 hover:shadow-md transition-all active:scale-95 shadow-sm"
+                >
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-50 rounded-full flex items-center justify-center text-purple-500 shadow-sm border border-purple-100">
+                    <Gamepad2 size={20} />
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-text-dark text-center leading-tight">Main<br/>Game</span>
+                </button>
+              </div>
+            )}
+
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white border border-border-light rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
+            >
+              <div className="flex items-center gap-4">
+                <div className={`text-white p-3.5 rounded-2xl shadow-sm ${tableNumber === 'Belum Scan' || tableNumber === 'Mode Tamu' ? 'bg-slate-300' : 'bg-primary'}`}>
+                  <QrCode size={24} />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-black text-text-dark text-base">
+                    {tableNumber === 'Belum Scan' || tableNumber === 'Mode Tamu' ? 'Belum Terhubung ke Meja' : (
+                      (() => {
+                        const base = /^\d+$/.test(tableNumber) ? `Meja ${tableNumber}` : tableNumber;
+                        return zoneName && zoneName !== 'Area Meja' ? `Terhubung ke ${base} (${zoneName})` : `Terhubung ke ${base}`;
+                      })()
+                    )}
+                  </h3>
+                  <p className="text-text-light text-xs font-semibold mt-0.5">
+                    {tableNumber === 'Belum Scan' || tableNumber === 'Mode Tamu'
+                      ? 'Scan QR di meja Anda untuk mulai memesan.'
+                      : `Pesanan akan diantar ke ${/^\d+$/.test(tableNumber) ? 'meja' : 'lokasi'} ini.`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setScanResult(null);
+                  setScannerError(null);
+                  setShowScanner(true);
+                }}
+                className={`${tableNumber === 'Belum Scan' || tableNumber === 'Mode Tamu' ? 'bg-text-dark hover:bg-slate-700' : 'bg-primary hover:bg-primary-hover'} text-white font-black text-xs uppercase tracking-wider px-6 py-3.5 rounded-2xl shadow-sm active:scale-95 transition-all self-start sm:self-center flex items-center gap-2 cursor-pointer`}
+              >
+                <QrCode size={16} />
+                {tableNumber === 'Belum Scan' || tableNumber === 'Mode Tamu' ? 'Scan Sekarang' : 'Scan Ulang'}
+              </button>
+            </motion.div>
 
                 {recommendedMenuItems.length > 0 && (
                   <div className="space-y-4 pt-2">
                     <div className="flex items-center justify-between pl-1">
                       <div>
-                        <h3 className="text-lg font-black text-slate-800 tracking-tight">Rekomendasi Spesial Untukmu</h3>
-                        <p className="text-[10px] font-bold text-slate-400">Pilihan hidangan terbaik berdasarkan profil Tangolab Anda</p>
+                        <h3 className="text-lg font-black text-text-dark tracking-tight">Rekomendasi Spesial Untukmu</h3>
+                        <p className="text-[10px] font-bold text-text-light">Pilihan hidangan terbaik berdasarkan profil Tangolab Anda</p>
                       </div>
-                      <span className="bg-orange-50 text-[#FF6B00] text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest">
+                      <span className="bg-slate-50 border border-border-light text-primary text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest">
                         Personalized
                       </span>
                     </div>
                     <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 scroll-smooth">
                       {recommendedMenuItems.map((item) => (
                         <div key={`rec-${item.id}`} className="w-[170px] sm:w-[190px] shrink-0">
-                          <MenuCard item={item} onAdd={(item) => setSelectedItemForNote(item)} />
+                          <MenuCard item={item} onAdd={(item) => addToCartWithNote(item, '')} />
                         </div>
                       ))}
                     </div>
@@ -1137,7 +1138,7 @@ export default function App() {
 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                   {filteredMenu.map((item) => (
-                    <MenuCard key={item.id} item={item} onAdd={(item) => setSelectedItemForNote(item)} />
+                    <MenuCard key={item.id} item={item} onAdd={(item) => addToCartWithNote(item, '')} />
                   ))}
                 </div>
 
@@ -1164,13 +1165,17 @@ export default function App() {
                     )}
                   </div>
                 )}
-              </>
-            )}
-          </>
-        )}
-
+            </motion.div>
+          )}
         {activeTab === 'orders' && (
-          <OrderHistoryModal
+          <motion.div 
+            key="orders"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <OrderHistoryModal
             isOpen={true}
             onClose={() => setActiveTab('dashboard')}
             orders={orderHistory}
@@ -1182,31 +1187,55 @@ export default function App() {
             isInline={true}
             onReorder={handleReorder}
             onStartOrdering={() => setActiveTab('dashboard')}
-          />
+            />
+          </motion.div>
         )}
 
         {activeTab === 'game' && (
-          <GameScreen
+          <motion.div 
+            key="game"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <GameScreen
             onClose={() => setActiveTab('dashboard')}
             onGameComplete={handleGameComplete}
             userId={currentUser?.id || (isGuest ? 'GUEST' : null)}
             isInline={true}
-          />
+            />
+          </motion.div>
         )}
 
         {activeTab === 'voucher' && (
-          <VoucherRedeemModal
+          <motion.div 
+            key="voucher"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <VoucherRedeemModal
             isOpen={true}
             onClose={() => setActiveTab('dashboard')}
             userId={currentUser?.id}
             myVouchers={myVouchers}
             onRefreshVouchers={() => refreshVouchers()}
             isInline={true}
-          />
+            />
+          </motion.div>
         )}
 
         {activeTab === 'profile' && (
-          <ProfileModal
+          <motion.div 
+            key="profile"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ProfileModal
             isOpen={true}
             onClose={() => setActiveTab('dashboard')}
             user={currentUser}
@@ -1216,56 +1245,13 @@ export default function App() {
             onLogout={handleLogout}
             onRedeemVoucherClick={() => setActiveTab('voucher')}
             isInline={true}
-          />
-        )}
-      </main>
-
-      <AnimatePresence>
-        {cart.length > 0 && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-24 left-4 right-4 z-40 flex justify-center pointer-events-none"
-          >
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsCartOpen(true)}
-              className="w-full max-w-lg bg-[#FF6B00] text-white py-4 rounded-[28px] flex items-center justify-between px-6 shadow-[0_20px_50px_rgba(255,107,0,0.3)] pointer-events-auto group relative overflow-hidden"
-            >
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="bg-white/20 p-2.5 rounded-2xl relative">
-                  <ShoppingBag size={20} />
-                  <motion.span
-                    initial={{ scale: 0.5 }}
-                    animate={{ scale: 1 }}
-                    key={cart.length}
-                    className="absolute -top-1 -right-1 bg-white text-[#FF6B00] text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg"
-                  >
-                    {cart.reduce((sum, item) => sum + item.quantity, 0)}
-                  </motion.span>
-                </div>
-                <div className="text-left leading-none">
-                  <p className="text-[10px] text-white/70 font-black uppercase tracking-[0.2em] mb-1">Check Keranjang</p>
-                  <p className="font-black text-xl italic tracking-tight">Rp {cartTotal.toLocaleString('id-ID')}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 relative z-10">
-                <div className="bg-white/10 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10 group-hover:bg-white/20 transition-colors">
-                  <span className="font-black text-sm uppercase tracking-widest">Lihat</span>
-                </div>
-              </div>
-
-              <motion.div
-                animate={{ x: ['-100%', '200%'] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                className="absolute top-0 w-32 h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12"
-              />
-            </motion.button>
+            />
           </motion.div>
         )}
-      </AnimatePresence>
+        </AnimatePresence>
+      </motion.main>
+
+
 
       <CartModal
         isOpen={isCartOpen}
@@ -1471,6 +1457,11 @@ export default function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
+          onScanClick={() => {
+            setScanResult(null);
+            setScannerError(null);
+            setShowScanner(true);
+          }}
         />
       )}
     </div>

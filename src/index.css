@@ -4,14 +4,26 @@
   --font-display: "Plus Jakarta Sans", sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   
+  --color-primary: #FF9F0D;
+  --color-primary-hover: #e88d05;
+  --color-text-dark: #333333;
+  --color-text-light: #828282;
+  --color-border-light: #f2f2f2;
+
   --radius-xl: 20px;
   --radius-2xl: 25px;
   --radius-3xl: 32px;
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
-    @apply font-sans bg-white text-slate-900 antialiased;
+    @apply font-sans bg-white text-text-dark antialiased;
+  }
+  button {
+    @apply transition-all duration-300 ease-out;
   }
 }
 
@@ -25,7 +37,7 @@
   }
   
   .btn-primary {
-    @apply bg-[#FF6B00] text-white font-bold rounded-[25px] transition-all active:scale-95 hover:bg-[#e66000] disabled:bg-slate-200 disabled:text-slate-400 shadow-lg shadow-orange-100;
+    @apply bg-primary text-white font-bold rounded-[25px] transition-all active:scale-95 hover:bg-primary-hover disabled:bg-slate-200 disabled:text-slate-400 shadow-md shadow-orange-100/50;
   }
 
   .card-shadow {
