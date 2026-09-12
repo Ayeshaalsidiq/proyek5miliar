@@ -1,0 +1,85 @@
+Created At: 2026-09-11T03:48:41Z
+Completed At: 2026-09-11T03:48:42Z
+File Path: `file:///c:/Users/fahmi/Downloads/pemesananngolab/proyek5miliar/src/App.tsx`
+Total Lines: 1754
+Total Bytes: 76720
+Showing lines 1 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import React, { useState, useMemo, useEffect } from 'react';
+2: import { ShoppingBag, Clock, LogIn, Bell, QrCode, X, Coins, Ticket, History, Gamepad2 } from 'lucide-react';
+3: import { MenuItem, CartItem, Category, Order, PaymentMethod, Voucher, MyVoucher } from './types';
+4: import Header from './components/Header';
+5: import CategoryFilter from './components/CategoryFilter';
+6: import MenuCard from './components/MenuCard';
+7: import CartModal from './components/CartModal';
+8: import PaymentModal from './components/PaymentModal';
+9: import Receipt from './components/Receipt';
+10: import WelcomeScreen from './components/WelcomeScreen';
+11: import LoginView from './components/LoginView';
+12: import RegisterView from './components/RegisterView';
+13: import PointsModal from './components/PointsModal';
+14: import OrderHistoryModal from './components/OrderHistoryModal';
+15: import ProfileModal from './components/ProfileModal';
+16: import GameScreen from './components/GameScreen';
+17: import VoucherRedeemModal from './components/VoucherRedeemModal';
+18: import BottomNavigation, { TabType } from './components/BottomNavigation';
+19: import { motion, AnimatePresence } from 'motion/react';
+20: import { submitScanTracking } from './services/orderService';
+21: import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+22: import { getRecommendations, earnCoins } from './services/tangolabService';
+23: import { getUserVouchers } from './services/smartTagApi';
+24: 
+25: 
+26: const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+27: 
+<truncated 33767 bytes>
+0);
+753: 
+754:     const newOrder: Order = {
+755:       id: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+756:       items: [...cart],
+757:       total: finalTotal,
+758:       subtotal: cartTotal,
+759:       discountAmount: promoDiscount,
+760:       promoCode: appliedVoucher && !isRewardVoucher ? appliedCode : null,
+761:       tableNumber,
+762:       paymentMethod: method,
+763:       timestamp: new Date().toLocaleString('id-ID'),
+764:       status: 'PENDING',
+765:       customerName: finalCustomerName,
+766:       note: orderNote,
+767:       pointsEarned: pointsEarned,
+768:     };
+769: 
+770:     // FORMAT DATA KERANJANG AGAR SESUAI DENGAN PERMINTAAN MYSQL ADMIN
+771:     const orderDataKasir = {
+772:       id: newOrder.id,
+773:       table: (() => {
+774:         const base = /^\d+$/.test(tableNumber) ? `Meja ${tableNumber}` : tableNumber;
+775:         return zoneName && zoneName !== 'Area Meja' ? `${base} (${zoneName})` : base;
+776:       })(),
+777:       customer: finalCustomerName,
+778:       type: orderType,
+779:       deliveryAddress: orderType === 'Delivery FIT' ? deliveryAddress : undefined,
+780:       paymentMethod: method,
+781:       amountPaid: finalTotal,
+782:       change: 0,
+783:       total: finalTotal,
+784:       subtotal: cartTotal,
+785:       discountAmount: promoDiscount,
+786:       finalTotal,
+787:       voucherCode: isRewardVoucher ? appliedCode : null,
+788:       rewardName,
+789:       promoCode: appliedVoucher && !isRewardVoucher ? appliedCode : null,
+790:       userId: isGuest ? null : (currentUser?.id || null),
+791:       items: cart.map(item => ({
+792:         id: item.id, // ID Asli dari MySQL
+793:         name: item.name,
+794:         price: item.price,
+795:         quantity: item.quantity,
+796:         note: item.note || ""
+797:       }))
+798:     };
+799: 
+800:     setCart([]);
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

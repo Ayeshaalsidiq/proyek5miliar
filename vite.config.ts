@@ -24,17 +24,9 @@ export default defineConfig(({mode}) => {
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       proxy: {
-        // ── Tangolab (Gesture-Eats) API ────────────────────────────────────
-        // Must be declared BEFORE the generic /api rule so Vite matches it first.
-        '/api/tangolab': {
-          target: 'https://geasture.kolab.top',
-          changeOrigin: true,
-          secure: true,
-          rewrite: (path) => path.replace(/^\/api\/tangolab/, ''),
-        },
-        // ── Kasir Admin (MySQL Backend via Localtunnel) ────────────────────
+        // ── Kasir Admin (MySQL Backend) ────────────────────────────────────
         '/api': {
-          target: env.KASIR_DOMAIN || 'http://192.168.1.9:3001',
+          target: 'https://smarttag.ngolab.online',
           changeOrigin: true,
         },
       },

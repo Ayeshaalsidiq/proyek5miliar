@@ -9,9 +9,11 @@ interface BottomNavigationProps {
   setActiveTab: (tab: TabType) => void;
   cartCount: number;
   onScanClick: () => void;
+  isGuest?: boolean;
+  onGuestTabClick?: () => void;
 }
 
-export default function BottomNavigation({ activeTab, setActiveTab, cartCount, onScanClick }: BottomNavigationProps) {
+export default function BottomNavigation({ activeTab, setActiveTab, cartCount, onScanClick, isGuest = false, onGuestTabClick }: BottomNavigationProps) {
   const tabs = [
     { id: 'dashboard', label: 'Beranda', icon: LayoutDashboard },
     { id: 'orders', label: 'Pesanan', icon: ClipboardList },
@@ -33,12 +35,12 @@ export default function BottomNavigation({ activeTab, setActiveTab, cartCount, o
               <button
                 key={tab.id}
                 onClick={onScanClick}
-                className="flex flex-col items-center justify-center relative -translate-y-[22px] focus:outline-none cursor-pointer group active:scale-95 transition-all"
+                className="flex flex-col items-center justify-center py-1 px-3 rounded-2xl relative focus:outline-none cursor-pointer group active:scale-95 transition-all"
               >
-                <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-xl shadow-orange-500/30 border-[6px] border-white">
-                  <Icon size={28} className="text-white" strokeWidth={2.5} />
+                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md shadow-orange-500/30 border-4 border-white">
+                  <Icon size={20} className="text-white" strokeWidth={2.5} />
                 </div>
-                <span className="text-[10px] font-black mt-1.5 tracking-wider uppercase text-text-dark">
+                <span className="text-[9px] font-black mt-1 tracking-wider uppercase text-text-dark">
                   {tab.label}
                 </span>
               </button>
@@ -48,7 +50,14 @@ export default function BottomNavigation({ activeTab, setActiveTab, cartCount, o
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as TabType)}
+              onClick={() => {
+                const isRestrictedForGuest = isGuest && (tab.id === 'voucher' || tab.id === 'profile');
+                if (isRestrictedForGuest) {
+                  onGuestTabClick?.();
+                } else {
+                  setActiveTab(tab.id as TabType);
+                }
+              }}
               className="flex flex-col items-center justify-center py-1 px-3 rounded-2xl relative transition-all active:scale-95 group focus:outline-none cursor-pointer"
             >
               <div className="relative">
@@ -63,6 +72,15 @@ export default function BottomNavigation({ activeTab, setActiveTab, cartCount, o
                 >
                   <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                 </motion.div>
+                {/* Indikator kunci untuk tab yang dibatasi */}
+                {isGuest && (tab.id === 'voucher' || tab.id === 'profile') && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-slate-400 rounded-full flex items-center justify-center">
+                    <svg width="7" height="8" viewBox="0 0 7 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="0.5" y="3.5" width="6" height="4" rx="1" fill="white"/>
+                      <path d="M1.5 3.5V2.5C1.5 1.4 2.4 0.5 3.5 0.5C4.6 0.5 5.5 1.4 5.5 2.5V3.5" stroke="white" strokeWidth="1"/>
+                    </svg>
+                  </span>
+                )}
               </div>
 
               <span

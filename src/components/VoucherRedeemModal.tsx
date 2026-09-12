@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Ticket, Sparkles, AlertCircle, Clock, QrCode, CheckCircle2, ChevronRight, Info } from 'lucide-react';
-import { claimPromoCode } from '../services/tangolabService';
+import { X, Ticket, Clock, QrCode, ChevronRight, Info, Coins } from 'lucide-react';
+import { getCoinPromosCatalog, getRewardRedeemStatus, markRewardRedeemed, redeemCoinVoucher } from '../services/smartTagApi';
+import type { PromoKoin } from '../types';
+import VoucherTicketCard from './VoucherTicketCard';
 
 interface VoucherRedeemModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId?: string;
+    points: number;
+    onRefreshPoints: () => void;
   myVouchers: any[];
   onRefreshVouchers: () => void;
+  onVoucherRedeemed: (voucher: any, promo: PromoKoin) => void;
   isInline?: boolean;
 }
 
@@ -16,54 +21,58 @@ export default function VoucherRedeemModal({
   isOpen, 
   onClose, 
   userId,
+    points,
+    onRefreshPoints,
   myVouchers, 
   onRefreshVouchers,
+  onVoucherRedeemed,
   isInline = false
 }: VoucherRedeemModalProps) {
   const [activeSubTab, setActiveSubTab] = useState<'my_vouchers' | 'promo_code'>('my_vouchers');
   
-  // Redeem Code States
-  const [code, setCode] = useState('');
-  const [status, setStatus] = useState<'idle' | 'validating' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
   const [selectedVoucher, setSelectedVoucher] = useState<any | null>(null);
+  const [pointPromos, setPointPromos] = useState<PromoKoin[]>([]);
+  const [loadingPointPromos, setLoadingPointPromos] = useState(false);
+  const [redeemingPromo, setRedeemingPromo] = useState<string | null>(null);
+  const [redeemMessage, setRedeemMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [redeemedPromos, setRedeemedPromos] = useState<Set<string>>(new Set());
 
-  const handleRedeem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId) {
-      setStatus('error');
-      setErrorMessage('Silakan login terlebih dahulu.');
-      return;
-    }
+  React.useEffect(() => {
+    if (!isOpen && !isInline) return;
+    setLoadingPointPromos(true);
+    getCoinPromosCatalog().then(async promos => {
+      setPointPromos(promos);
+      const statuses = await Promise.all(promos.map(async promo => [promo.id, await getRewardRedeemStatus(promo.id)] as const));
+      setRedeemedPromos(new Set(statuses.filter(([, redeemed]) => redeemed).map(([id]) => id)));
+    }).finally(() => setLoadingPointPromos(false));
+  }, [isOpen, isInline]);
 
-    const cleanCode = code.trim().toUpperCase();
-    if (!cleanCode) return;
-
-    setStatus('validating');
-    setErrorMessage('');
-
-    const res = await claimPromoCode(userId, cleanCode);
-    if (res && res.status === 'success') {
-      setStatus('success');
+  const handleRedeemPoints = async (promo: PromoKoin) => {
+    if (!userId) return setErrorMessage('Silakan login terlebih dahulu.');
+    if (points < promo.coin_cost) return;
+    setRedeemingPromo(promo.id);
+    setRedeemMessage(null);
+    const result = await redeemCoinVoucher(userId, promo.id);
+    setRedeemingPromo(null);
+    if (result?.status === 'success') {
+      markRewardRedeemed(promo.id);
+      setRedeemedPromos(previous => new Set(previous).add(promo.id));
+      setRedeemMessage({ type: 'success', text: result.message || `${promo.title} berhasil ditukar.` });
+      onVoucherRedeemed(result.data || {}, promo);
+      onRefreshPoints();
       onRefreshVouchers();
     } else {
-      setStatus('error');
-      setErrorMessage(res?.message || 'Kode voucher tidak valid atau sudah digunakan.');
+      setRedeemMessage({ type: 'error', text: result?.message || 'Voucher gagal ditukar oleh SmartTag.' });
     }
-  };
-
-  const resetState = () => {
-    setCode('');
-    setStatus('idle');
-    setErrorMessage('');
   };
 
   if (!isOpen && !isInline) return null;
 
   return (
     <AnimatePresence>
-      <div className={isInline ? 'relative z-10 w-full mb-8' : 'fixed inset-0 z-[70] flex items-end sm:items-center justify-center'}>
+      <div className={isInline ? 'relative z-10 w-full mt-4 mb-8' : 'fixed inset-0 z-[70] flex items-end sm:items-center justify-center'}>
         {!isInline && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -82,25 +91,25 @@ export default function VoucherRedeemModal({
           className={`bg-white w-full max-w-md mx-auto flex flex-col ${isInline ? 'rounded-[24px] shadow-sm border border-border-light h-[calc(100vh-170px)] overflow-hidden' : 'sm:rounded-[24px] rounded-t-[24px] shadow-2xl relative z-10 max-h-[92vh] sm:max-h-[88vh] overflow-hidden'}`}
         >
           {/* Header */}
-          <div className="p-5 sm:p-6 border-b border-border-light flex items-center justify-between bg-white shrink-0">
-            <div className="flex items-center gap-3 text-left">
-              <div className="bg-primary/10 text-primary p-2.5 rounded-xl">
-                <Ticket size={20} />
+          {!isInline && (
+            <div className="p-5 sm:p-6 border-b border-border-light flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center gap-3 text-left">
+                <div className="bg-primary/10 text-primary p-2.5 rounded-xl">
+                  <Ticket size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-text-dark text-lg sm:text-xl tracking-tight">Voucher Anda</h3>
+                  <p className="text-text-light text-xs font-semibold mt-0.5">Klaim dan gunakan promo</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-black text-text-dark text-lg sm:text-xl tracking-tight">Voucher Anda</h3>
-                <p className="text-text-light text-xs font-semibold mt-0.5">Klaim dan gunakan promo menarik</p>
-              </div>
-            </div>
-            {!isInline && (
               <button
                 onClick={onClose}
                 className="w-8 h-8 bg-slate-50 hover:bg-slate-100 rounded-full flex items-center justify-center text-text-light hover:text-text-dark active:scale-90 transition-all cursor-pointer"
               >
                 <X size={18} />
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Sub-tab Navigation */}
           <div className="px-6 pt-4 bg-white border-b border-border-light shrink-0">
@@ -119,7 +128,7 @@ export default function VoucherRedeemModal({
                   activeSubTab === 'promo_code' ? 'border-primary text-primary' : 'border-transparent text-text-light hover:text-text-dark'
                 }`}
               >
-                Klaim Kode
+                Tukar Voucher
               </button>
             </div>
           </div>
@@ -150,32 +159,13 @@ export default function VoucherRedeemModal({
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 gap-3">
                         {myVouchers.filter(v => !v.used).map((v) => (
-                          <div 
+                          <VoucherTicketCard
                             key={v.id}
+                            title={v.name || v.title}
+                            code={v.voucher_code}
+                            actionLabel="Gunakan"
                             onClick={() => setSelectedVoucher(v)}
-                            className="bg-white border border-border-light rounded-2xl flex overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.98]"
-                          >
-                            {/* Left Graphic */}
-                            <div className="w-[90px] sm:w-[100px] bg-slate-50 flex flex-col items-center justify-center p-3 border-r border-dashed border-border-light shrink-0 relative overflow-hidden">
-                              <div className="absolute top-0 bottom-0 -left-1 w-2 bg-primary" />
-                              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mb-1.5 text-primary">
-                                {v.icon ? <span>{v.icon}</span> : <Ticket size={20} />}
-                              </div>
-                              <span className="font-black text-primary text-[10px] sm:text-[11px] uppercase tracking-wider text-center line-clamp-1">{v.discount_price ? `Rp${v.discount_price/1000}K` : 'Promo'}</span>
-                            </div>
-                            
-                            {/* Right Info */}
-                            <div className="flex-1 p-3.5 sm:p-4 flex flex-col justify-between min-w-0">
-                              <div>
-                                <h4 className="font-bold text-text-dark text-[13px] sm:text-sm truncate leading-tight">{v.name || v.title}</h4>
-                                <p className="text-text-light text-[10px] sm:text-[11px] font-medium mt-1 line-clamp-2 leading-snug">{v.description}</p>
-                              </div>
-                              <div className="mt-3 flex items-center justify-between">
-                                <span className="text-[9px] sm:text-[10px] font-bold text-text-light bg-slate-100 px-2 py-0.5 rounded uppercase border border-border-light">{v.voucher_code}</span>
-                                <span className="text-[10px] sm:text-[11px] font-bold text-primary flex items-center gap-0.5">Gunakan <ChevronRight size={14} /></span>
-                              </div>
-                            </div>
-                          </div>
+                          />
                         ))}
                       </div>
                     </div>
@@ -183,7 +173,7 @@ export default function VoucherRedeemModal({
                 </motion.div>
               )}
 
-              {/* TAB 2: KLAIM KODE */}
+              {/* TAB 2: TUKAR VOUCHER */}
               {activeSubTab === 'promo_code' && (
                 <motion.div
                   key="tab-promo-code"
@@ -192,90 +182,49 @@ export default function VoucherRedeemModal({
                   exit={{ opacity: 0, x: 15 }}
                   className="space-y-4"
                 >
-                  {status !== 'success' ? (
                     <div className="space-y-4">
-                      <div className="bg-white border border-border-light rounded-2xl p-4 sm:p-5 flex gap-4 shadow-sm items-center">
-                        <div className="bg-primary/10 text-primary p-3 rounded-xl h-fit flex items-center justify-center shrink-0">
-                          <Sparkles size={24} />
-                        </div>
-                        <div>
-                          <h4 className="font-extrabold text-text-dark text-sm">Punya Kode Promo?</h4>
-                          <p className="text-text-light text-[11px] font-medium mt-0.5 leading-snug">
-                            Klaim kode unikmu untuk mendapatkan penawaran spesial.
-                          </p>
-                        </div>
-                      </div>
-
-                      <form onSubmit={handleRedeem} className="bg-white p-4 sm:p-5 rounded-2xl border border-border-light shadow-sm">
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-bold text-text-dark">
-                            Masukkan Kode Voucher
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              placeholder="KODE PROMO"
-                              value={code}
-                              onChange={(e) => setCode(e.target.value)}
-                              disabled={status === 'validating'}
-                              className="w-full bg-slate-50 border border-border-light rounded-xl px-4 py-3 font-black text-text-dark uppercase tracking-widest text-sm outline-none focus:bg-white focus:border-primary transition-all disabled:opacity-60"
-                            />
-                            {status === 'validating' && (
-                              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
-                                <div className="w-5 h-5 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                              </div>
-                            )}
+                      <div className="bg-white border border-border-light rounded-2xl shadow-sm overflow-hidden">
+                        <div className="bg-orange-50 px-4 py-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="bg-white text-primary p-2 rounded-xl">
+                              <Coins size={18} />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-wider text-orange-500">Total Poin Anda</p>
+                              <p className="text-xl font-black text-primary leading-tight">{points.toLocaleString('id-ID')} Poin</p>
+                            </div>
                           </div>
                         </div>
 
-                        {status === 'error' && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-rose-50 border border-rose-100 p-3 rounded-xl flex items-start gap-2.5 text-rose-600 mt-4"
-                          >
-                            <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                            <p className="text-[11px] font-bold leading-snug">{errorMessage}</p>
-                          </motion.div>
-                        )}
+                      </div>
 
-                        <button
-                          type="submit"
-                          disabled={!code.trim() || status === 'validating'}
-                          className="w-full mt-4 bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-bold text-sm shadow-sm disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
-                        >
-                          {status === 'validating' ? 'Memvalidasi...' : 'Klaim Kode Sekarang'}
-                        </button>
-                      </form>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Coins size={16} className="text-primary" />
+                          <h4 className="font-black text-text-dark text-sm">Tukar Voucher dengan Poin</h4>
+                        </div>
+                        {redeemMessage && (
+                          <div className={`rounded-xl px-3 py-2 text-xs font-bold ${redeemMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}>
+                            {redeemMessage.text}
+                          </div>
+                        )}
+                        {loadingPointPromos ? (
+                          <div className="bg-white rounded-2xl p-4 text-text-light text-xs">Memuat voucher SmartTag...</div>
+                        ) : pointPromos.length === 0 ? (
+                          <div className="bg-white border border-border-light rounded-2xl p-4 text-text-light text-xs">Belum ada voucher poin dari SmartTag.</div>
+                        ) : pointPromos.map((promo) => (
+                          <VoucherTicketCard
+                            key={promo.id}
+                            title={promo.title}
+                            points={promo.coin_cost}
+                            actionLabel={redeemingPromo === promo.id ? 'Memproses...' : redeemedPromos.has(promo.id) ? 'Sudah Ditukar' : promo.coin_cost <= 0 ? 'Tidak tersedia' : points >= promo.coin_cost ? 'Tukar Poin' : 'Poin Kurang'}
+                            disabled={redeemedPromos.has(promo.id) || promo.coin_cost <= 0 || points < promo.coin_cost || redeemingPromo === promo.id}
+                            isRedeemed={redeemedPromos.has(promo.id)}
+                            onAction={() => handleRedeemPoints(promo)}
+                          />
+                        ))}
+                      </div>
                     </div>
-                  ) : (
-                    <motion.div
-                      key="redeem-success"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      className="flex flex-col items-center py-8 text-center space-y-4 bg-white border border-border-light rounded-2xl p-6 shadow-sm"
-                    >
-                      <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500">
-                        <CheckCircle2 size={40} strokeWidth={2.5} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <h3 className="text-lg font-black text-text-dark">Klaim Berhasil!</h3>
-                        <p className="text-text-light text-[11px] font-medium max-w-[220px] mx-auto leading-snug">
-                          Voucher berhasil ditambahkan ke dompet Anda.
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          resetState();
-                          setActiveSubTab('my_vouchers');
-                        }}
-                        className="mt-2 w-full bg-slate-100 hover:bg-slate-200 text-text-dark py-3 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all"
-                      >
-                        Lihat Voucher Saya
-                      </button>
-                    </motion.div>
-                  )}
                 </motion.div>
               )}
             </AnimatePresence>

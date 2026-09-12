@@ -67,14 +67,14 @@ const MenuCard: React.FC<MenuCardProps> = ({ item, onAdd }) => {
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               {item.discountPrice ? (
-                <>
-                  <p className="text-[10px] text-text-light line-through">
-                    Rp {item.price.toLocaleString('id-ID')}
-                  </p>
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <p className={`font-bold text-sm ${item.inStock ? 'text-primary' : 'text-slate-400'}`}>
                     Rp {item.discountPrice.toLocaleString('id-ID')}
                   </p>
-                </>
+                  <p className="text-[10px] text-text-light line-through">
+                    Rp {item.price.toLocaleString('id-ID')}
+                  </p>
+                </div>
               ) : (
                 <p className={`font-bold text-sm ${item.inStock ? 'text-primary' : 'text-slate-400'}`}>
                   Rp {item.price.toLocaleString('id-ID')}

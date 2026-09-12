@@ -152,20 +152,7 @@ export default function OrderHistoryModal({
       onReorder={onReorder} 
     />
   ) : (
-    <div className={`bg-white w-full max-w-2xl mx-auto sm:rounded-[24px] overflow-hidden ${isInline ? 'pb-20' : 'shadow-sm border border-border-light'} flex flex-col relative z-10`}>
-      {/* Header */}
-      <div className="p-5 sm:p-6 border-b border-border-light flex items-center justify-between bg-white shrink-0">
-        <div className="flex items-center gap-3 text-left">
-          <div className="bg-primary text-white p-2.5 rounded-xl">
-            <ShoppingBag size={20} />
-          </div>
-          <div>
-            <h3 className="font-black text-text-dark text-lg sm:text-xl tracking-tight">Riwayat Pesanan</h3>
-            <p className="text-text-light text-xs font-semibold mt-0.5">Daftar transaksi kuliner Anda</p>
-          </div>
-        </div>
-      </div>
-
+    <div className={`bg-white w-full max-w-2xl mx-auto sm:rounded-[24px] overflow-hidden ${isInline ? 'mt-4 pb-20' : 'shadow-sm border border-border-light'} flex flex-col relative z-10`}>
       {/* Sticky Search */}
       {orders.length > 0 && (
         <div className="p-5 pb-4 border-b border-border-light bg-white shrink-0">

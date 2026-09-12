@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, User, Mail, Phone, Shield, Star, ShoppingBag, LogOut, Ticket, ArrowLeft, IdCard } from 'lucide-react';
+import { X, User, Mail, Phone, Shield, Coins, ShoppingBag, LogOut, Ticket, ArrowLeft, IdCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ProfileModalProps {
@@ -94,7 +94,7 @@ export default function ProfileModal({
           >
             <div className="flex items-center gap-3">
               <div className="bg-orange-50 text-orange-500 p-2.5 rounded-xl group-hover:scale-110 transition-transform">
-                <Star size={18} />
+                <Coins size={18} />
               </div>
               <div>
                 <h5 className="font-bold text-text-dark text-sm">Poin Loyalitas</h5>

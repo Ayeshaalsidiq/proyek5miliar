@@ -23,10 +23,8 @@ export default function OrderDetailScreen({ order, onBack, onReorder }: OrderDet
   const statusText = getStatusText(order.status);
   
   // Calculate subtotal
-  const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const serviceFee = 1500;
-  const isDiscount = subtotal + serviceFee > order.total;
-  const discountAmount = isDiscount ? (subtotal + serviceFee) - order.total : 0;
+  const subtotal = order.subtotal ?? order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const discountAmount = order.discountAmount ?? Math.max(0, subtotal - order.total);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -171,7 +169,7 @@ export default function OrderDetailScreen({ order, onBack, onReorder }: OrderDet
             
             {discountAmount > 0 && (
               <div className="flex justify-between text-text-light">
-                <span>Voucher Diskon</span>
+                <span>Potongan</span>
                 <span className="text-red-500">-Rp{discountAmount.toLocaleString('id-ID')}</span>
               </div>
             )}

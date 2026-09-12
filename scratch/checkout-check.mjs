@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const server = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
+const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
+const orderRoute = server.split('app.post("/api/order",')[1].split('app.post("/api/orders/:id/payment-proof",')[0];
+assert.match(orderRoute, /forwardAuthHeaders\(req\)/);
+assert.match(orderRoute, /res.status\(response.status\)/);
+assert.doesNotMatch(orderRoute, /success: true/);
+assert.match(app, /orderResponseData.success === false/);
+assert.match(app, /newOrder.id = String\(backendOrderId\)/);
+assert.match(app, /paymentWarning \|\| 'Pesanan berhasil/);
+assert.match(app, /voucherCode: isRewardVoucher \? appliedCode : null/);
+assert.match(app, /rewardName,/);
+assert.match(app, /promoCode: appliedVoucher && !isRewardVoucher \? appliedCode : null/);
+assert.match(app, /voucherType !== 'promo'/);
+assert.match(app, /discountAmount: promoDiscount/);
+assert.ok(app.includes('if (paymentProof && !authToken)'));
+assert.ok(app.includes('Upload ditolak server (HTTP ${paymentResponse.status}).'));
+assert.ok(app.includes('${paymentFailureReason} Hubungi kasir; jangan pesan ulang.'));
+const welcome = readFileSync(new URL('../src/components/WelcomeScreen.tsx', import.meta.url), 'utf8');
+assert.match(welcome, /token: result.token/);
+const checkout = app.slice(app.indexOf('const handleConfirmPayment ='));
+const tokenGuard = checkout.indexOf('if (paymentProof && !authToken)');
+assert.ok(tokenGuard >= 0 && tokenGuard < checkout.indexOf('setCart([])'));
+assert.match(checkout.slice(tokenGuard, checkout.indexOf('const accountName')), /return;/);
+console.log('Checkout regression checks passed');

@@ -116,8 +116,7 @@ async function startServer() {
       res.json({
         user: {
           id: req.params.user_id,
-          nama: req.params.user_id === "U123" ? "Reza" : "Pengguna",
-          coin_balance: userPointsMap.has(req.params.user_id) ? userPointsMap.get(req.params.user_id) : 500
+          coin_balance: userPointsMap.has(req.params.user_id) ? userPointsMap.get(req.params.user_id) : 0
         },
         recommendations: [
           {
@@ -157,7 +156,7 @@ async function startServer() {
           id: "U123",
           nama: "Reza",
           nim: "2024001",
-          coin_balance: userPointsMap.has("U123") ? userPointsMap.get("U123") : 500,
+          coin_balance: userPointsMap.has("U123") ? userPointsMap.get("U123") : 0,
           avatar_url: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
           rfid_tag_id: req.params.tag_id
         }
@@ -262,7 +261,7 @@ async function startServer() {
       res.status(response.status).json(data);
     } catch (error) {
       console.warn("Tangolab earn-coins error (using fallback):", error);
-      const current = userPointsMap.get(req.params.user_id) || 500;
+      const current = userPointsMap.get(req.params.user_id) || 0;
       const amount = Number(req.body.amount || 0);
       const nextBal = current + amount;
       userPointsMap.set(req.params.user_id, nextBal);
@@ -360,7 +359,7 @@ async function startServer() {
       res.status(response.status).json(data);
     } catch (error) {
       console.warn("Tangolab redeem error (using fallback):", error);
-      const current = userPointsMap.get(req.body.user_id) || 500;
+      const current = userPointsMap.get(req.body.user_id) || 0;
       const nextBal = Math.max(0, current - 50); // simulate 50 coin cost
       userPointsMap.set(req.body.user_id, nextBal);
       res.json({
@@ -507,6 +506,7 @@ async function startServer() {
       });
 
       const data = await response.json();
+      console.log("[PROXY] Login Response from Kasir:", data);
       res.json(data);
     } catch (error) {
       console.warn("Login Error (offline), falling back to dummy login:", error);
@@ -516,7 +516,7 @@ async function startServer() {
         message: "Login berhasil (Offline Mode)",
         user: {
           id: id,
-          name: id === "U123" ? "Reza" : "Pengguna",
+          name: id === "U123" ? "Reza" : "Dummy Offline",
           email: "user@example.com",
           role: "customer"
         }
@@ -567,7 +567,8 @@ async function startServer() {
         method: "GET",
         headers: {
           "Accept": "application/json",
-          "Bypass-Tunnel-Reminder": "true"
+          "Bypass-Tunnel-Reminder": "true",
+          "Authorization": req.headers.authorization || ""
         }
       });
       const data = await response.json();
@@ -603,7 +604,8 @@ async function startServer() {
         method: "GET",
         headers: {
           "Accept": "application/json",
-          "Bypass-Tunnel-Reminder": "true"
+          "Bypass-Tunnel-Reminder": "true",
+          "Authorization": req.headers.authorization || ""
         }
       });
       const data = await response.json();
@@ -614,6 +616,51 @@ async function startServer() {
     }
   });
 
+  // Penukaran poin ke reward/voucher via KASIR API
+  app.post("/api/point-rewards/:id/redeem", async (req, res) => {
+    const { id } = req.params;
+    try {
+      console.log(`[PROXY] Redeeming point reward ID ${id} for user...`);
+      const response = await fetch(`${KASIR_DOMAIN}/api/point-rewards/${id}/redeem`, {
+        method: "POST",
+        body: JSON.stringify(req.body),
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Bypass-Tunnel-Reminder": "true",
+          "Authorization": req.headers.authorization || ""
+        }
+      });
+      const data = await response.json();
+      console.log(`[PROXY] Redeem response:`, data);
+      res.status(response.status).json(data);
+    } catch (error) {
+      console.warn(`[PROXY] Gagal redeem point reward ${id}:`, error);
+      res.status(500).json({ success: false, message: "Gagal menukarkan poin. Coba lagi." });
+    }
+  });
+
+  // Cek status redeem per reward dari KASIR API
+  app.get("/api/point-rewards/:id/redeem-status", async (req, res) => {
+    const { id } = req.params;
+    try {
+      const response = await fetch(`${KASIR_DOMAIN}/api/point-rewards/${id}/redeem-status`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "Bypass-Tunnel-Reminder": "true",
+          "Authorization": req.headers.authorization || ""
+        }
+      });
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } catch (error) {
+      console.warn(`[PROXY] Gagal cek redeem-status untuk reward ${id}:`, error);
+      res.json({ redeemed: false });
+    }
+  });
+
+
   app.get("/api/users/:id/points", async (req, res) => {
     const { id } = req.params;
     try {
@@ -622,7 +669,8 @@ async function startServer() {
         method: "GET",
         headers: {
           "Accept": "application/json",
-          "Bypass-Tunnel-Reminder": "true"
+          "Bypass-Tunnel-Reminder": "true",
+          "Authorization": req.headers.authorization || ""
         }
       });
       const data = await response.json();
@@ -633,7 +681,7 @@ async function startServer() {
     } catch (error) {
       console.warn(`[PROXY] Gagal mengambil poin untuk ${id}. Menggunakan fallback/memori dummy.`);
       if (!userPointsMap.has(id)) {
-        userPointsMap.set(id, 500); // default fallback value
+        userPointsMap.set(id, 0); // default fallback value
       }
       res.json({ success: true, points: userPointsMap.get(id) });
     }
@@ -650,7 +698,8 @@ async function startServer() {
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
-          "Bypass-Tunnel-Reminder": "true"
+          "Bypass-Tunnel-Reminder": "true",
+          "Authorization": req.headers.authorization || ""
         }
       });
       const data = await response.json();
@@ -660,7 +709,7 @@ async function startServer() {
       res.json(data);
     } catch (error) {
       console.warn(`[PROXY] Gagal memperbarui poin untuk ${id}. Menggunakan update memori dummy.`);
-      const current = userPointsMap.get(id) || 500;
+      const current = userPointsMap.get(id) || 0;
       const nextPoints = current + Number(amount || 0);
       userPointsMap.set(id, nextPoints);
       res.json({ success: true, points: nextPoints });
@@ -675,7 +724,8 @@ async function startServer() {
         method: "GET",
         headers: {
           "Accept": "application/json",
-          "Bypass-Tunnel-Reminder": "true"
+          "Bypass-Tunnel-Reminder": "true",
+          "Authorization": req.headers.authorization || ""
         }
       });
       const data = await response.json();
@@ -948,8 +998,9 @@ async function startServer() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       try {
-        console.log(`[PROXY] Mengambil menu NGOLAB dari: ${API_KASIR_URL}`);
-        const response = await fetch(API_KASIR_URL, {
+        const fetchUrl = `${API_KASIR_URL}?_t=${Date.now()}`;
+        console.log(`[PROXY] Mengambil menu NGOLAB dari: ${fetchUrl}`);
+        const response = await fetch(fetchUrl, {
           method: "GET",
           signal: controller.signal,
           headers: {
@@ -957,7 +1008,8 @@ async function startServer() {
             "Bypass-Tunnel-Reminder": "true",
             "Accept": "application/json",
             "User-Agent": "Mozilla/5.0",
-            "X-Loop-Prevent": "true"
+            "X-Loop-Prevent": "true",
+            "Cache-Control": "no-cache"
           }
         });
         clearTimeout(timeoutId);
@@ -978,7 +1030,7 @@ async function startServer() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
       try {
-        const url = `${AIRGESTURE_DOMAIN}/api/menu?outlet=coworking`;
+        const url = `${AIRGESTURE_DOMAIN}/api/menu?outlet=coworking&_t=${Date.now()}`;
         console.log(`[PROXY] Mengambil menu AIR GESTURE dari: ${url}`);
         const response = await fetch(url, {
           method: "GET",
@@ -986,7 +1038,8 @@ async function startServer() {
           headers: {
             "Accept": "application/json",
             "x-api-key": AIRGESTURE_API_KEY,
-            "X-Loop-Prevent": "true"
+            "X-Loop-Prevent": "true",
+            "Cache-Control": "no-cache"
           }
         });
         clearTimeout(timeoutId);

@@ -1,14 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, QrCode, X, Loader2 } from 'lucide-react';
-import { scanRFIDTag, validateUserLogin } from '../services/tangolabService';
+import { login } from '../services/smartTagApi';
 
 interface WelcomeScreenProps {
   onRegister: () => void;
   onSuccess: (user: any) => void;
+  onScanBarcode: () => void;
 }
 
-export default function WelcomeScreen({ onRegister, onSuccess }: WelcomeScreenProps) {
+export default function WelcomeScreen({ onRegister, onSuccess, onScanBarcode }: WelcomeScreenProps) {
   const [showNfcModal, setShowNfcModal] = useState(false);
   const [tagId, setTagId] = useState('');
   const [isLoadingNfc, setIsLoadingNfc] = useState(false);
@@ -26,6 +27,40 @@ export default function WelcomeScreen({ onRegister, onSuccess }: WelcomeScreenPr
     }
   }, [showNfcModal]);
 
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanInput = email.trim();
+    const cleanPassword = password.trim();
+    if (!cleanInput || !cleanPassword) return;
+
+    setIsLoadingLogin(true);
+    setErrorLogin('');
+
+    try {
+      const result = await login(cleanInput, cleanPassword);
+
+      if (result.success && result.user) {
+        const mappedUser = {
+          id: result.user.id,
+          name: result.user.name || cleanInput,
+          email: result.user.email || cleanInput,
+          phone: result.user.phone || '',
+          nim: result.user.nim || '',
+          points: result.user.points || 0,
+          role: result.user.role || 'Pelanggan',
+          token: result.token,
+        };
+        onSuccess(mappedUser);
+      } else {
+        setErrorLogin(result.message || 'Login gagal. Periksa kembali email/NIM dan password.');
+      }
+    } catch (err) {
+      setErrorLogin('Terjadi kesalahan koneksi. Pastikan server aktif.');
+    } finally {
+      setIsLoadingLogin(false);
+    }
+  };
+
   const handleNfcSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanTag = tagId.trim();
@@ -35,9 +70,17 @@ export default function WelcomeScreen({ onRegister, onSuccess }: WelcomeScreenPr
     setErrorNfc('');
 
     try {
-      const data = await scanRFIDTag(cleanTag);
-      if (data && (data.status === 'success' || data.user)) {
-        onSuccess(data.user);
+      const data = await login(cleanTag, cleanTag);
+      if (data && data.success && data.user) {
+        onSuccess({
+          id: data.user.id,
+          name: data.user.name || cleanTag,
+          email: data.user.email || cleanTag,
+          phone: data.user.phone || '',
+          nim: data.user.nim || '',
+          points: data.user.points || 0,
+          role: data.user.role || 'Pelanggan',
+        });
         setShowNfcModal(false);
       } else {
         setErrorNfc('Barcode tidak terdaftar di sistem.');
@@ -60,58 +103,27 @@ export default function WelcomeScreen({ onRegister, onSuccess }: WelcomeScreenPr
     }, 500);
   };
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanInput = email.trim();
-    if (!cleanInput) return;
-
-    setIsLoadingLogin(true);
-    setErrorLogin('');
-
-    try {
-      const result = await validateUserLogin(cleanInput);
-
-      if (result.status === 'success' && result.user) {
-        // Map Tangolab user fields to app's expected format
-        const user = result.user as any;
-        const mappedUser = {
-          id: user.id,
-          name: user.nama || user.name || user.id,
-          nama: user.nama || user.name || user.id,
-          nim: user.nim || '',
-          email: user.email || '',
-          coin_balance: user.coin_balance ?? 0,
-          points: user.coin_balance ?? 0,
-          role: user.role || 'Pelanggan',
-          avatar_url: user.avatar_url || '',
-        };
-        onSuccess(mappedUser);
-      } else {
-        setErrorLogin(result.message || 'Login gagal. ID / NIM tidak ditemukan.');
-      }
-    } catch (err) {
-      setErrorLogin('Terjadi kesalahan koneksi. Pastikan server aktif.');
-    } finally {
-      setIsLoadingLogin(false);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center p-6 overflow-hidden">
+    <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center p-6 overflow-y-auto">
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-[10%] -left-[10%] w-[40%] aspect-square bg-orange-500/20 rounded-full blur-[100px] opacity-50" />
         <div className="absolute top-[20%] -right-[5%] w-[30%] aspect-square bg-[#FF6B00]/20 rounded-full blur-[100px] opacity-30" />
       </div>
 
-      <div className="w-full max-w-sm flex flex-col items-center relative z-10">
-        {/* Logo */}
+      <div className="w-full max-w-sm flex flex-col items-center relative z-10 my-auto shrink-0">
+        {/* Logo — tanpa latar, ukuran kecil */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="w-40 h-40 bg-white rounded-full flex items-center justify-center shadow-xl shadow-orange-500/10 mb-8 overflow-hidden p-1 border border-slate-100"
+          className="mb-6"
         >
-          <img src="/logo-ngolab.png" alt="Ngolab Logo" className="w-full h-full object-contain scale-[1.15]" />
+          <img
+            src="/ngolab logo png.png"
+            alt="Ngolab Logo"
+            className="w-24 h-24 object-contain"
+            style={{ mixBlendMode: 'multiply' }}
+          />
         </motion.div>
 
         <motion.div
@@ -123,16 +135,16 @@ export default function WelcomeScreen({ onRegister, onSuccess }: WelcomeScreenPr
           <form onSubmit={handleLoginSubmit} className="space-y-5">
             <div className="space-y-2">
               <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">
-                Email
+                Email / NIM
               </label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
                 <input
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Masukkan Email"
+                  placeholder="Masukkan Email atau NIM"
                   className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-700 placeholder:text-slate-300 focus:ring-2 focus:ring-orange-100 transition-all focus:outline-none"
                 />
               </div>
@@ -183,11 +195,10 @@ export default function WelcomeScreen({ onRegister, onSuccess }: WelcomeScreenPr
 
           <button
             type="button"
-            onClick={() => setShowNfcModal(true)}
-            className="w-full bg-slate-900 text-white p-4 rounded-[24px] font-black shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-3 cursor-pointer"
+            onClick={onScanBarcode}
+            className="w-full bg-slate-100 text-slate-700 p-4 rounded-[24px] font-black hover:bg-slate-200 transition-all flex items-center justify-center gap-3 cursor-pointer border border-slate-200"
           >
-            <QrCode size={20} className="text-orange-400" />
-            <span>Scan Barcode</span>
+            <span>Lanjut sebagai Guest</span>
           </button>
         </motion.div>
         
@@ -283,7 +294,6 @@ export default function WelcomeScreen({ onRegister, onSuccess }: WelcomeScreenPr
                   >
                     {isLoadingNfc ? 'Mengecek Kartu...' : 'Hubungkan'}
                   </button>
-
                   <button
                     type="button"
                     onClick={handleSimulateScan}

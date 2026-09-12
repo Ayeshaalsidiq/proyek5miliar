@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { User, ArrowLeft, Mail, Phone, Loader2, Sparkles, LogIn, Lock } from 'lucide-react';
-import { registerUser } from '../services/tangolabService';
+import { registerUser } from '../services/smartTagApi';
 
 interface RegisterViewProps {
   onBack: () => void;
@@ -24,15 +24,13 @@ export default function RegisterView({ onBack, onSuccess, onGuest }: RegisterVie
 
     try {
       const data = await registerUser({
-        id: email.trim(),
-        nama: nama.trim(),
-        nim: '',
-        email: email.trim(),
-        phone: phone.trim()
-        // password: password.trim() // If backend starts accepting password
+        name: nama.trim(),
+        emailNim: email.trim(),
+        phone: phone.trim(),
+        password: password.trim(),
       });
 
-      if (data && data.status === 'success') {
+      if (data && data.success) {
         alert('Registrasi sukses! Silakan login.');
         onSuccess();
       } else {
@@ -92,7 +90,7 @@ export default function RegisterView({ onBack, onSuccess, onGuest }: RegisterVie
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Contoh: nama@kolab.top"
+                placeholder="Contoh: nama@email.com"
                 className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-700 placeholder:text-slate-300 focus:ring-2 focus:ring-blue-100 transition-all focus:outline-none"
               />
             </div>
@@ -109,7 +107,7 @@ export default function RegisterView({ onBack, onSuccess, onGuest }: RegisterVie
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Masukkan Password Anda"
+                placeholder="Buat Password"
                 className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 font-bold text-slate-700 placeholder:text-slate-300 focus:ring-2 focus:ring-blue-100 transition-all focus:outline-none"
               />
             </div>
@@ -171,4 +169,3 @@ export default function RegisterView({ onBack, onSuccess, onGuest }: RegisterVie
     </div>
   );
 }
-

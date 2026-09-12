@@ -19,7 +19,8 @@ import BottomNavigation, { TabType } from './components/BottomNavigation';
 import { motion, AnimatePresence } from 'motion/react';
 import { submitScanTracking } from './services/orderService';
 import { Html5Qrcode } from 'html5-qrcode';
-import { getRecommendations, earnCoins, getUserVouchers, useVoucher, validateVoucher } from './services/tangolabService';
+import { getRecommendations, earnCoins } from './services/tangolabService';
+import { getUserVouchers, validateVoucher, claimPromoCode, saveRedeemedVoucherToStorage } from './services/smartTagApi';
 
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -156,7 +157,13 @@ export default function App() {
       const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 detik di frontend
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/menu`, { signal: controller.signal });
+        const response = await fetch(`${API_BASE_URL}/api/menu?_t=${Date.now()}`, { 
+          signal: controller.signal,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
         clearTimeout(timeoutId);
 
         let result;
@@ -200,14 +207,14 @@ export default function App() {
             price: Number(item.price || 0),
             category,
             image: item.image_url
-              ? (item.image_url.startsWith('http') ? item.image_url : `http://localhost:5000/${item.image_url.replace(/^\//, '')}`)
+              ? (item.image_url.startsWith('http') ? item.image_url : `https://smarttag.ngolab.online/${item.image_url.replace(/^\//, '')}`)
               : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=400',
             // Dinonaktifkan jika displayed === 0, false, atau '0'. Jika ditampilkan, gunakan check status/stok.
             inStock: item.displayed !== 0 && item.displayed !== false && item.displayed !== '0' && (item.status === 'Tersedia' || Number(item.stock) > 0),
             stock: Number(item.stock || 0),
             description: item.description || '',
-            isPromo: false,
-            discountPrice: undefined
+            isPromo: !!(item.promo_price || item.promoPrice) && (Number(item.promo_price || item.promoPrice) < Number(item.price || 0)),
+            discountPrice: (item.promo_price || item.promoPrice) && (Number(item.promo_price || item.promoPrice) < Number(item.price || 0)) ? Number(item.promo_price || item.promoPrice) : undefined
           };
         });
 
@@ -306,6 +313,16 @@ export default function App() {
     fetchPointSettings();
     fetchPointRewards();
     fetchMenu();
+
+    // Auto-refresh menu data when window regains focus
+    const handleFocus = () => {
+      fetchMenu();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   // Load Tangolab recommendations and user vouchers when logged in
@@ -314,14 +331,11 @@ export default function App() {
       getRecommendations(currentUser.id).then(data => {
         if (data) {
           if (data.user) {
-            // Merge with local state
-            const updatedUser = { ...currentUser, ...data.user };
+            // Merge dengan local state, tapi JANGAN timpa token asli dari KASIR
+            const updatedUser = { ...currentUser, ...data.user, token: currentUser.token };
             setCurrentUser(updatedUser);
             localStorage.setItem('maslahat_user', JSON.stringify(updatedUser));
-            if (data.user.coin_balance !== undefined) {
-              setPoints(data.user.coin_balance);
-              localStorage.setItem('maslahat_points', data.user.coin_balance.toString());
-            }
+
           }
           if (Array.isArray(data.recommendations)) {
             setRecommendations(data.recommendations);
@@ -339,7 +353,7 @@ export default function App() {
   const refreshVouchers = async (userId?: string) => {
     const uid = userId || currentUser?.id;
     if (!uid) return;
-    const vouchers = await getUserVouchers(uid);
+    const vouchers = await getUserVouchers(String(uid));
     if (Array.isArray(vouchers)) {
       const mapped = vouchers.map((v: any) => ({
         ...v,
@@ -359,6 +373,7 @@ export default function App() {
       localStorage.setItem('maslahat_my_vouchers', JSON.stringify(mapped));
     }
   };
+
 
 
   const handleAuth = (type: 'guest' | 'login' | 'table_scan', userData?: any) => {
@@ -432,19 +447,24 @@ export default function App() {
     if (currentUser && currentUser.id && !isGuest) {
       const syncPoints = async () => {
         try {
-          const res = await getRecommendations(currentUser.id);
-          if (res && res.user && res.user.coin_balance !== undefined) {
-            setPoints(res.user.coin_balance);
-            localStorage.setItem('maslahat_points', res.user.coin_balance.toString());
-            
-            setCurrentUser((prev: any) => {
-              if (prev && prev.id === currentUser.id) {
-                const updated = { ...prev, points: res.user.coin_balance };
-                localStorage.setItem('maslahat_user', JSON.stringify(updated));
-                return updated;
-              }
-              return prev;
-            });
+          const res = await fetch(`${API_BASE_URL}/api/users/${currentUser.id}/points`, {
+            headers: { 'Authorization': `Bearer ${currentUser.token || ''}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.points !== undefined) {
+              setPoints(data.points);
+              localStorage.setItem('maslahat_points', data.points.toString());
+              
+              setCurrentUser((prev: any) => {
+                if (prev && prev.id === currentUser.id) {
+                  const updated = { ...prev, points: data.points };
+                  localStorage.setItem('maslahat_user', JSON.stringify(updated));
+                  return updated;
+                }
+                return prev;
+              });
+            }
           }
         } catch (error) {
           console.error("Gagal sinkronisasi poin di awal:", error);
@@ -459,7 +479,9 @@ export default function App() {
     if (currentUser && currentUser.id && !isGuest) {
       const fetchOrderHistory = async () => {
         try {
-          const response = await fetch(`${API_BASE_URL}/api/users/${currentUser.id}/orders`);
+          const response = await fetch(`${API_BASE_URL}/api/users/${currentUser.id}/orders`, {
+            headers: { 'Authorization': `Bearer ${currentUser.token || ''}` }
+          });
           if (response.ok) {
             const data = await response.json();
             if (Array.isArray(data)) {
@@ -664,7 +686,7 @@ export default function App() {
     setIsCartOpen(true);
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartTotal = cart.reduce((sum, item) => sum + (item.discountPrice || item.price) * item.quantity, 0);
 
   const handleCheckout = () => {
     setIsCartOpen(false);
@@ -705,12 +727,12 @@ export default function App() {
   };
 
 
-  const handleConfirmPayment = async (method: PaymentMethod, customerName: string) => {
-    const finalCustomerName = customerName || "Pelanggan App";
+  const handleConfirmPayment = async (method: PaymentMethod, customerName: string, orderNote = '', paymentProof: File | null = null) => {
+    const finalCustomerName = customerName || (isGuest ? "Guest" : (currentUser?.nama || currentUser?.name || "Pelanggan App"));
 
     // HITUNG DISKON VOUCHER
     let discountAmount = 0;
-    if (appliedVoucher && appliedVoucher.discount !== 'GRATIS') {
+    if (!isGuest && appliedVoucher && appliedVoucher.discount !== 'GRATIS') {
       if (appliedVoucher.discount.includes('%')) {
         const pct = parseInt(appliedVoucher.discount.replace(/[^0-9]/g, ''), 10) || 0;
         discountAmount = Math.round((cartTotal * pct) / 100);
@@ -733,6 +755,7 @@ export default function App() {
       timestamp: new Date().toLocaleString('id-ID'),
       status: 'PENDING',
       customerName: finalCustomerName,
+      note: orderNote,
       pointsEarned: pointsEarned,
     };
 
@@ -752,6 +775,7 @@ export default function App() {
       total: finalTotal,
       promoCode: appliedVoucher ? appliedVoucher.code : null,
       userId: isGuest ? null : (currentUser?.id || null),
+      notes: orderNote, // CATATAN PESANAN GLOBAL
       items: cart.map(item => ({
         id: item.id, // ID Asli dari MySQL
         name: item.name,
@@ -774,7 +798,9 @@ export default function App() {
       if (!isGuest && currentUser?.id) {
         // Fetch updated points from backend
         try {
-          const ptsRes = await fetch(`${API_BASE_URL}/api/users/${currentUser.id}/points`);
+          const ptsRes = await fetch(`${API_BASE_URL}/api/users/${currentUser.id}/points`, {
+            headers: { 'Authorization': `Bearer ${currentUser.token || ''}` }
+          });
           if (ptsRes.ok) {
             const ptsData = await ptsRes.json();
             if (ptsData && ptsData.points !== undefined) {
@@ -1009,6 +1035,7 @@ export default function App() {
         activeTab={activeTab}
         cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
         onCartClick={() => setActiveTab('cart')}
+        userName={currentUser?.name || currentUser?.nama}
       />
 
       <PointsModal
@@ -1228,8 +1255,47 @@ export default function App() {
             isOpen={true}
             onClose={() => setActiveTab('dashboard')}
             userId={currentUser?.id}
+            points={points}
+            onRefreshPoints={() => {
+              if (currentUser?.id) {
+                fetch(`${API_BASE_URL}/api/users/${currentUser.id}/points`, {
+                  headers: { 'Authorization': `Bearer ${currentUser.token || ''}` }
+                }).then(r => r.json()).then(data => {
+                  if (data?.points !== undefined) {
+                    setPoints(data.points);
+                    localStorage.setItem('maslahat_points', data.points.toString());
+                  }
+                }).catch(() => {});
+              }
+            }}
             myVouchers={myVouchers}
             onRefreshVouchers={() => refreshVouchers()}
+            onVoucherRedeemed={(voucher, promo) => {
+              // Simpan voucher hasil redeem ke localStorage agar muncul di Voucher Saya
+              if (currentUser?.id) {
+                const voucherCode = voucher?.voucherCode || voucher?.voucher_code || voucher?.code;
+                if (voucherCode) {
+                  const rewardVoucher = {
+                    id: `redeemed-${promo.id}-${Date.now()}`,
+                    name: promo.title,
+                    title: promo.title,
+                    description: promo.description || `Reward: ${promo.title}`,
+                    code: voucherCode,
+                    voucher_code: voucherCode,
+                    discount: promo.title,
+                    expiry: '30 hari',
+                    color: 'from-green-500 to-teal-600',
+                    icon: '🎁',
+                    used: false,
+                    claimedAt: new Date().toLocaleString('id-ID'),
+                  };
+                  saveRedeemedVoucherToStorage(String(currentUser.id), rewardVoucher);
+                  // Langsung perbarui state — jangan panggil refreshVouchers agar tidak tertimpa
+                  setMyVouchers((prev: any[]) => [rewardVoucher, ...prev]);
+                }
+              }
+              // Jangan panggil refreshVouchers() di sini — sudah ada onRefreshVouchers
+            }}
             isInline={true}
             />
           </motion.div>
@@ -1295,20 +1361,20 @@ export default function App() {
               isOpen={true}
               onClose={() => setActiveTab('cart')}
               total={cartTotal}
-              onConfirm={async (method, customerName) => {
+              onConfirm={async (method, customerName, orderNote, paymentProof) => {
                 // Call use-voucher API to mark voucher as used on the backend
                 if (appliedVoucher && currentUser?.id) {
                   const vCode = appliedVoucher.voucher_code || appliedVoucher.code;
                   if (vCode) {
-                    await useVoucher(currentUser.id, vCode);
+                    await claimPromoCode(currentUser.id, vCode);
                   }
                   setAppliedVoucher(null);
                   refreshVouchers();
                 }
-                handleConfirmPayment(method, customerName);
+                handleConfirmPayment(method, customerName, orderNote, paymentProof);
               }}
-              myVouchers={myVouchers}
-              appliedVoucher={appliedVoucher}
+              myVouchers={isGuest ? [] : myVouchers}
+              appliedVoucher={isGuest ? null : appliedVoucher}
               setAppliedVoucher={setAppliedVoucher}
               userId={currentUser?.id}
               cartItems={cart}
@@ -1362,7 +1428,7 @@ export default function App() {
               <div className="space-y-2">
                 <h3 className="text-xl font-black text-slate-800">Login Diperlukan</h3>
                 <p className="text-slate-400 text-sm font-medium leading-relaxed">
-                  Maaf, fitur pemesanan hanya tersedia untuk pengguna terdaftar. Silakan login untuk melanjutkan pesanan Anda.
+                  Fitur Voucher &amp; Profil hanya tersedia untuk pengguna yang sudah login. Silakan login untuk melanjutkan.
                 </p>
               </div>
               <div className="flex flex-col gap-3">
@@ -1444,7 +1510,12 @@ export default function App() {
       {completedOrder && showStatus && (
         <Receipt
           order={completedOrder}
-          onClose={() => setShowStatus(false)}
+          onClose={() => {
+            setShowStatus(false);
+            if (activeTab === 'payment' || activeTab === 'cart') {
+              setActiveTab('dashboard');
+            }
+          }}
           onUpdateOrder={handleUpdateOrder}
         />
       )}
@@ -1573,6 +1644,8 @@ export default function App() {
             setScannerError(null);
             setShowScanner(true);
           }}
+          isGuest={isGuest}
+          onGuestTabClick={() => setShowLoginPrompt(true)}
         />
       )}
     </div>

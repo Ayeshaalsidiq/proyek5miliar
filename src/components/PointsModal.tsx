@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Coins, Clock, Gift, Ticket, AlertCircle, RefreshCw } from 'lucide-react';
 import { PromoKoin, MyVoucher, UserVoucher } from '../types';
-import { getCoinPromosCatalog, getTransactionHistory, redeemCoinVoucher, CoinTransaction } from '../services/tangolabService';
+import { getTransactionHistory, CoinTransaction } from '../services/tangolabService';
+import { getCoinPromosCatalog, getRewardRedeemStatus, markRewardRedeemed, redeemCoinVoucher } from '../services/smartTagApi';
+import VoucherTicketCard from './VoucherTicketCard';
 
 interface PointsModalProps {
   isOpen: boolean;
@@ -20,6 +22,7 @@ export default function PointsModal({ isOpen, onClose, points, userId, onRefresh
   const [isLoading, setIsLoading] = useState(false);
   const [isRedeeming, setIsRedeeming] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState<string | null>(null);
+  const [redeemedPromos, setRedeemedPromos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isOpen) {
@@ -32,6 +35,8 @@ export default function PointsModal({ isOpen, onClose, points, userId, onRefresh
     if (activeTab === 'KATALOG') {
       const data = await getCoinPromosCatalog();
       setPromos(data || []);
+      const statuses = await Promise.all((data || []).map(async promo => [promo.id, await getRewardRedeemStatus(promo.id)] as const));
+      setRedeemedPromos(new Set(statuses.filter(([, redeemed]) => redeemed).map(([id]) => id)));
     } else if (activeTab === 'RIWAYAT' && userId) {
       const data = await getTransactionHistory(userId);
       setHistory(data || []);
@@ -51,6 +56,8 @@ export default function PointsModal({ isOpen, onClose, points, userId, onRefresh
     setIsRedeeming(null);
 
     if (res && res.status === 'success') {
+      markRewardRedeemed(promo.id);
+      setRedeemedPromos(previous => new Set(previous).add(promo.id));
       setRedeemSuccess(promo.title);
       onRefreshPoints();
       setTimeout(() => setRedeemSuccess(null), 3000);
@@ -190,51 +197,23 @@ export default function PointsModal({ isOpen, onClose, points, userId, onRefresh
                       promos.map((v, i) => {
                         const canAfford = points >= v.coin_cost;
                         const isProcessing = isRedeeming === v.id;
+                        const isRedeemed = redeemedPromos.has(v.id);
                         
-                        let discountText = v.discount_type === 'PERCENTAGE' 
-                          ? `${v.discount_value}%` 
-                          : `Rp ${v.discount_value.toLocaleString('id-ID')}`;
-
                         return (
                           <motion.div
                             key={v.id}
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.05 }}
-                            className={`border rounded-3xl overflow-hidden transition-all shadow-sm ${canAfford ? 'border-slate-200' : 'border-slate-100 opacity-70 grayscale-[30%]'}`}
                           >
-                            <div className="bg-slate-50 px-5 py-4 flex items-center gap-3 relative overflow-hidden border-b border-slate-100">
-                              <div className="absolute right-0 top-0 bottom-0 opacity-5">
-                                <Ticket size={100} className="-rotate-12 translate-x-4 text-slate-900" />
-                              </div>
-                              <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-100 shrink-0 z-10">
-                                <Ticket size={24} className="text-[#FF6B00]" />
-                              </div>
-                              <div className="flex-1 z-10">
-                                <p className="text-slate-800 font-black text-sm leading-tight">{v.title}</p>
-                                <p className="text-slate-500 text-[10px] font-semibold mt-0.5 line-clamp-2">{v.description}</p>
-                              </div>
-                              <div className="bg-orange-50 px-3 py-1.5 rounded-xl border border-orange-100 text-center shadow-sm z-10">
-                                <p className="text-[#FF6B00] font-black text-base leading-none whitespace-nowrap">{discountText}</p>
-                              </div>
-                            </div>
-                            <div className="bg-white px-5 py-3.5 flex items-center justify-between">
-                              <div className="flex items-center gap-1.5 bg-orange-50 px-3 py-1.5 rounded-xl border border-orange-100">
-                                <Coins size={14} className="text-[#FF6B00]" strokeWidth={2.5} />
-                                <p className="font-black text-[#FF6B00] text-sm">{v.coin_cost}</p>
-                              </div>
-                              <button
-                                disabled={!canAfford || isProcessing}
-                                onClick={() => handleRedeem(v)}
-                                className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all active:scale-95 flex items-center gap-1 ${
-                                  canAfford
-                                    ? 'bg-[#FF6B00] hover:bg-[#e66000] text-white shadow-md shadow-orange-200'
-                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                }`}
-                              >
-                                {isProcessing ? 'Memproses...' : canAfford ? 'Tukar Poin' : 'Poin Kurang'}
-                              </button>
-                            </div>
+                            <VoucherTicketCard
+                              title={v.title}
+                              points={v.coin_cost}
+                              actionLabel={isProcessing ? 'Memproses...' : isRedeemed ? 'Sudah Ditukar' : canAfford ? 'Tukar Poin' : 'Poin Kurang'}
+                              disabled={isRedeemed || !canAfford || isProcessing}
+                              isRedeemed={isRedeemed}
+                              onAction={() => handleRedeem(v)}
+                            />
                           </motion.div>
                         );
                       })
@@ -273,7 +252,8 @@ export default function PointsModal({ isOpen, onClose, points, userId, onRefresh
                       </div>
                     ) : (
                       history.map((tx, i) => {
-                        const isEarn = tx.type === 'earn' || tx.type === 'EARN';
+                        const normalizedType = String(tx.type).toLowerCase();
+                        const isEarn = normalizedType === 'earn' || normalizedType === 'credit' || normalizedType === 'add';
                         return (
                           <motion.div
                             key={tx.id || i}

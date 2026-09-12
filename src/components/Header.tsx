@@ -1,6 +1,6 @@
-import { MapPin, Search, Coins, LogOut, History, User, Gamepad2, Ticket, ShoppingCart } from 'lucide-react';
+import { MapPin, Search, Coins, LogOut, History, User, Gamepad2, Ticket, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'motion/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface HeaderProps {
   tableNumber: string;
@@ -15,9 +15,11 @@ interface HeaderProps {
   activeTab?: string;
   cartCount: number;
   onCartClick: () => void;
+  userName?: string;
+  onBackToHome?: () => void;
 }
 
-export default function Header({ tableNumber, isGuest, zoneName, searchQuery, setSearchQuery, points, onPointsClick, onLogout, onProfileClick, activeTab = 'dashboard', cartCount, onCartClick }: HeaderProps) {
+export default function Header({ tableNumber, isGuest, zoneName, searchQuery, setSearchQuery, points, onPointsClick, onLogout, onProfileClick, activeTab = 'dashboard', cartCount, onCartClick, userName, onBackToHome }: HeaderProps) {
   const { scrollY } = useScroll();
   const [hidden, setHidden] = useState(false);
 
@@ -29,19 +31,26 @@ export default function Header({ tableNumber, isGuest, zoneName, searchQuery, se
     }
   });
 
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      setHidden(false);
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [activeTab]);
+
   const isDashboard = activeTab === 'dashboard';
 
   return (
     <motion.header 
       initial={false}
       animate={{
-        y: hidden ? "-100%" : 0,
+        y: hidden && isDashboard ? "-100%" : 0,
         paddingBottom: isDashboard ? 80 : 16,
         borderBottomLeftRadius: isDashboard ? 32 : 24,
         borderBottomRightRadius: isDashboard ? 32 : 24,
       }}
       transition={{ duration: 0.4, ease: "easeInOut" }}
-      className="sticky top-0 z-30 flex flex-col shadow-sm overflow-hidden bg-white"
+      className={`sticky top-0 ${isDashboard ? 'z-30' : 'z-50'} flex flex-col shadow-sm overflow-hidden bg-white`}
       style={{
         paddingTop: '0.75rem',
         paddingLeft: '1rem',
@@ -65,11 +74,40 @@ export default function Header({ tableNumber, isGuest, zoneName, searchQuery, se
         }}
         transition={{ duration: 0.4, ease: "easeInOut" }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          {activeTab === 'cart' && (
+            <button
+              onClick={onBackToHome}
+              className="w-9 h-9 shrink-0 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-slate-200 active:scale-95 transition-all"
+              title="Kembali ke halaman utama"
+              aria-label="Kembali ke halaman utama"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          )}
           <div className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden transition-all duration-300 ${isDashboard ? 'border-[3px] border-white' : 'border border-slate-200'}`}>
             <img src="/logo-ngolab.png" alt="Ngolab Logo" className="w-full h-full object-contain rounded-full p-0.5" />
           </div>
+          {isDashboard && (
+            <div className="min-w-0 text-left">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/75 leading-none">Halo,</p>
+              <p className="max-w-[110px] truncate text-sm font-black text-white leading-tight">{userName?.trim() || (isGuest ? 'Tamu' : 'Pelanggan')}</p>
+            </div>
+          )}
         </div>
+
+        {(activeTab === 'payment' || activeTab === 'orders' || activeTab === 'voucher' || activeTab === 'cart') && (
+          <div className="absolute left-1/2 -translate-x-1/2 min-w-0 max-w-[45%] text-center">
+            <div className="min-w-0">
+              <h2 className="text-sm font-black text-slate-800 leading-tight truncate">
+                {activeTab === 'payment' ? 'Konfirmasi Pesanan' : activeTab === 'orders' ? 'Riwayat Pesanan' : activeTab === 'voucher' ? 'Voucher Anda' : 'Keranjang'}
+              </h2>
+              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                {activeTab === 'payment' ? 'Pilih metode & kirim pesanan' : activeTab === 'orders' ? 'Daftar transaksi kuliner Anda' : activeTab === 'voucher' ? 'Klaim dan gunakan promo' : 'Daftar menu pilihan Anda'}
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           {/* Points Badge */}
@@ -94,14 +132,14 @@ export default function Header({ tableNumber, isGuest, zoneName, searchQuery, se
 
           <button 
             onClick={onCartClick}
-            className={`w-10 h-10 backdrop-blur-sm rounded-xl flex items-center justify-center transition-colors active:scale-95 border relative ${
+            className={`w-9 h-9 backdrop-blur-sm rounded-lg flex items-center justify-center transition-colors active:scale-95 border relative ${
               isDashboard 
                 ? 'bg-white/20 text-white hover:bg-white/30 border-white/30' 
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
             }`}
             title="Keranjang"
           >
-            <ShoppingCart size={18} />
+            <ShoppingCart size={16} />
             {cartCount > 0 && (
               <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></span>
             )}
