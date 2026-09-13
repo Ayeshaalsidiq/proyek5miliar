@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { X, QrCode, Wallet, CreditCard, CheckCircle2, ChevronRight, Copy, Landmark, Banknote, Upload, Image as ImageIcon, Trash2, Ticket, MessageSquare } from 'lucide-react';
 import { PaymentMethod, MyVoucher } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { validateVoucher, getBatchVoucherQuotaInfo } from '../services/smartTagApi';
+import { validateVoucher } from '../services/smartTagApi';
 import VoucherTicketCard from './VoucherTicketCard';
 
 interface PaymentModalProps {
@@ -62,9 +62,7 @@ export default function PaymentModal({
   const [voucherError, setVoucherError] = useState<string | null>(null);
   const [voucherCode, setVoucherCode] = useState('');
   const [orderNote, setOrderNote] = useState('');
-  // Info kuota voucher: key = kode voucher uppercase, value = {remaining, max, isExhausted}
-  const [voucherQuotaInfo, setVoucherQuotaInfo] = useState<Record<string, { maxUsage: number | null; usageCount: number; remaining: number | null; isExhausted: boolean }>>({});
-  const [isLoadingQuota, setIsLoadingQuota] = useState(false);
+
 
   // ── Hitung diskon voucher ──────────────────────────────────────────────────
   const isRewardVoucher = Boolean(appliedVoucher && (appliedVoucher as any).voucherType !== 'promo');
@@ -216,20 +214,7 @@ export default function PaymentModal({
     }
   };
 
-  // ── Ambil info kuota saat voucher sheet dibuka ────────────────────────────
-  React.useEffect(() => {
-    if (!showVoucherSheet) return;
-    const codesWithPromo = myVouchers
-      .filter(v => !v.used)
-      .map(v => (v as any).voucher_code || v.code)
-      .filter(Boolean);
-    if (codesWithPromo.length === 0) return;
-    setIsLoadingQuota(true);
-    getBatchVoucherQuotaInfo(codesWithPromo).then(info => {
-      setVoucherQuotaInfo(info);
-      setIsLoadingQuota(false);
-    });
-  }, [showVoucherSheet]);
+
 
   const methods   = Object.keys(METHOD_DETAILS) as PaymentMethod[];
   const isDisabled = selectedMethod !== 'Tunai' && !paymentProof;
@@ -578,39 +563,31 @@ export default function PaymentModal({
                         <p className="text-red-600 text-xs font-bold">{voucherError}</p>
                       </div>
                     )}
-                    {myVouchers.filter(v => !v.used).length === 0 ? (
-                      <div className="text-center py-10">
-                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
-                          <Ticket size={24} />
-                        </div>
-                        <p className="text-slate-400 font-bold text-sm">Tidak ada voucher tersimpan.</p>
-                        <p className="text-slate-400 text-xs mt-1">Gunakan kode diskon di atas atau klaim voucher di menu Rewards.</p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-6">
-                        {myVouchers.filter(v => !v.used).map((v, i) => {
-                          const vCode = ((v as any).voucher_code || v.code || '').toUpperCase();
-                          const quotaInfo = voucherQuotaInfo[vCode];
-                          const isQuotaExhausted = quotaInfo?.isExhausted === true;
-                          const quotaRemaining = quotaInfo?.remaining ?? null;
-                          const quotaMax = quotaInfo?.maxUsage ?? null;
-                          return (
+                    
+                    {myVouchers && myVouchers.length > 0 && (
+                      <div className="pt-2">
+                        <p className="text-xs font-black text-slate-700 mb-3">Atau gunakan voucher Anda:</p>
+                        <div className="space-y-3">
+                          {myVouchers.map((voucher) => (
                             <VoucherTicketCard
-                              key={`${v.id}-${i}`}
-                              title={(v as any).name || v.title}
-                              discountText={v.discount}
-                              actionLabel={isQuotaExhausted ? 'Habis' : voucherValidating ? 'Memproses...' : 'Pakai'}
-                              disabled={voucherValidating || isQuotaExhausted}
-                              quotaRemaining={quotaRemaining}
-                              quotaMax={quotaMax}
-                              isExhausted={isQuotaExhausted}
-                              onAction={() => !isQuotaExhausted && handleApplyVoucher(v)}
-                              onClick={() => !isQuotaExhausted && handleApplyVoucher(v)}
+                              key={voucher.id}
+                              title={voucher.title}
+                              discountText={voucher.discount}
+                              actionLabel="Pakai"
+                              onClick={() => {
+                                setAppliedVoucher({
+                                  ...voucher,
+                                  used: false,
+                                  voucherType: 'promo',
+                                });
+                                setShowVoucherSheet(false);
+                              }}
                             />
-                          );
-                        })}
+                          ))}
+                        </div>
                       </div>
                     )}
+
                   </div>
                 </motion.div>
               </>

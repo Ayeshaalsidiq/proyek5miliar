@@ -32,10 +32,13 @@ export default function App() {
     return params.has('meja') || localStorage.getItem('maslahat_auth') === 'true';
   });
   const [isGuest, setIsGuest] = useState<boolean>(() => {
+    const savedRole = localStorage.getItem('maslahat_role');
+    if (savedRole === 'user') return false; // User login takes precedence over URL params
+
     const params = new URLSearchParams(window.location.search);
     if (params.get('role') === 'guest') return true;
     if (params.has('meja') && !params.has('role')) return false;
-    return localStorage.getItem('maslahat_role') === 'guest';
+    return savedRole === 'guest';
   });
   const [authView, setAuthView] = useState<'welcome' | 'login' | 'register'>('welcome');
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -76,28 +79,17 @@ export default function App() {
     }
   });
   const [myVouchers, setMyVouchers] = useState<MyVoucher[]>(() => {
-    const dummyVouchers = Array.from({ length: 12 }).map((_, i) => ({
-      id: `test-scroll-${i}`,
-      voucher_code: `NGOLAB${i + 1}K`,
-      name: `Voucher Diskon Spesial ${i + 1}`,
-      description: `Potongan ekstra untuk menu favorit Anda. Berlaku kelipatan dengan syarat dan ketentuan yang berlaku pada semua outlet Ngolab.`,
-      discount_price: (i + 1) * 2000,
-      used: false,
-      icon: '🎫'
-    }));
-
     try {
       const saved = localStorage.getItem('maslahat_my_vouchers');
-      if (!saved) return dummyVouchers;
+      if (!saved) return [];
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
         const cleaned = parsed.filter((v: any) => !v.used);
-        // Gabungkan voucher asli yang belum dipakai dengan dummy
-        return [...cleaned, ...dummyVouchers];
+        return cleaned;
       }
-      return dummyVouchers;
+      return [];
     } catch {
-      return dummyVouchers;
+      return [];
     }
   });
   const [appliedVoucher, setAppliedVoucher] = useState<MyVoucher | null>(null);
@@ -540,10 +532,13 @@ export default function App() {
       }
 
       if (role === 'guest') {
-        setIsGuest(true);
-        setIsAuthenticated(true);
-        localStorage.setItem('maslahat_auth', 'true');
-        localStorage.setItem('maslahat_role', 'guest');
+        const savedRole = localStorage.getItem('maslahat_role');
+        if (savedRole !== 'user') {
+          setIsGuest(true);
+          setIsAuthenticated(true);
+          localStorage.setItem('maslahat_auth', 'true');
+          localStorage.setItem('maslahat_role', 'guest');
+        }
       } else {
         handleAuth('table_scan');
       }
@@ -773,7 +768,7 @@ export default function App() {
       amountPaid: finalTotal,
       change: 0,
       total: finalTotal,
-      promoCode: appliedVoucher ? appliedVoucher.code : null,
+      promoCode: appliedVoucher ? appliedVoucher.code : null, // Backend lama membutuhkan ini
       userId: isGuest ? null : (currentUser?.id || null),
       notes: orderNote, // CATATAN PESANAN GLOBAL
       items: cart.map(item => ({
@@ -787,13 +782,35 @@ export default function App() {
 
     try {
       // Tembak Data Pesanan LANGSUNG ke Sistem Admin via Localtunnel
-      await fetch(`${API_BASE_URL}/api/order`, {
+      const orderRes = await fetch(`${API_BASE_URL}/api/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(orderDataKasir)
       });
+      
+      if (!orderRes.ok) {
+        const errorData = await orderRes.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || "Gagal mengirim pesanan");
+      }
+
+      // Jika ada payment proof (bukti bayar), upload secara terpisah
+      if (paymentProof) {
+        const formData = new FormData();
+        formData.append('paymentProof', paymentProof);
+
+        const uploadRes = await fetch(`${API_BASE_URL}/api/orders/${newOrder.id}/payment-proof`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (uploadRes.ok) {
+          newOrder.status = "Menunggu Validasi"; // Update status setelah sukses upload
+        } else {
+          console.warn("Gagal mengupload bukti pembayaran");
+        }
+      }
 
       if (!isGuest && currentUser?.id) {
         // Fetch updated points from backend
@@ -900,7 +917,7 @@ export default function App() {
 
     const checkStatus = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/order/${completedOrder.id}`);
+        const response = await fetch(`${API_BASE_URL}/api/orders/${completedOrder.id}`);
         if (response.ok) {
           const data = await response.json();
           const newStatus = data.status || data.order_status || completedOrder.status;

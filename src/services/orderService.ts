@@ -4,7 +4,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export async function submitOrderToBackend(order: Order): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/order`, {
+    const response = await fetch(`${API_BASE_URL}/api/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

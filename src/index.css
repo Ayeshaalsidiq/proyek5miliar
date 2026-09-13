@@ -52,43 +52,23 @@
     position: relative;
     overflow: visible;
     border-width: 1px;
-    border-radius: 24px;
+    border-radius: 12px;
     background: white;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .ticket-card::before,
-  .ticket-card::after {
-    content: "";
-    position: absolute;
-    z-index: 20;
-    left: calc(100% - 126px);
-    width: 18px;
-    height: 18px;
-    border: 1px solid #e2e8f0;
-    border-radius: 999px;
-    background: white;
-    transform: translateX(-50%);
-  }
 
-  .ticket-card::before {
-    top: -10px;
-  }
-
-  .ticket-card::after {
-    bottom: -10px;
-  }
 
   .ticket-card__info {
     min-width: 0;
-    border-radius: 23px 0 0 23px;
+    border-radius: 11px 0 0 11px;
     border-right: 1px dashed #cbd5e1;
   }
 
   .ticket-card__action {
     width: 126px;
-    border-radius: 0 23px 23px 0;
+    border-radius: 0 11px 11px 0;
   }
 
   .ticket-card--wallet {
@@ -96,22 +76,19 @@
     grid-template-columns: 174px minmax(0, 1fr);
   }
 
-  .ticket-card--wallet::before,
-  .ticket-card--wallet::after {
-    left: 174px;
-  }
+
 
   .ticket-card--wallet .ticket-card__wallet-graphic {
     width: auto;
     min-width: 0;
-    border-radius: 23px 0 0 23px;
+    border-radius: 11px 0 0 11px;
     border-right: 1px dashed #cbd5e1;
   }
 
   .ticket-card--wallet .ticket-card__wallet-details {
     width: auto;
     align-items: stretch;
-    border-radius: 0 23px 23px 0;
+    border-radius: 0 11px 11px 0;
   }
 
   .ticket-card--reward {
@@ -120,7 +97,7 @@
   }
 
   .ticket-card--reward .ticket-card__reward-info {
-    border-radius: 23px 0 0 23px;
+    border-radius: 11px 0 0 11px;
   }
 
   .ticket-card--reward .ticket-card__reward-info::after {
@@ -149,10 +126,7 @@
       grid-template-columns: minmax(0, 1fr) 112px;
     }
 
-    .ticket-card::before,
-    .ticket-card::after {
-      left: calc(100% - 112px);
-    }
+
 
     .ticket-card__action {
       width: 112px;
@@ -163,10 +137,7 @@
       grid-template-columns: minmax(0, 1fr) 112px;
     }
 
-    .ticket-card--wallet::before,
-    .ticket-card--wallet::after {
-      left: calc(100% - 112px);
-    }
+
 
     .ticket-card--wallet .ticket-card__wallet-graphic {
       width: auto;

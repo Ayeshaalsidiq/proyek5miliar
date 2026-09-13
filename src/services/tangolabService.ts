@@ -47,6 +47,35 @@ export interface CoinTransaction {
   timestamp?: string;
 }
 
+// ── LOCAL TRANSACTION HISTORY (Fallback) ───────────────────────────────────
+export function getLocalTransactions(userId: string): CoinTransaction[] {
+  try {
+    const key = `maslahat_tx_history_${userId}`;
+    return JSON.parse(localStorage.getItem(key) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+export function saveLocalTransaction(userId: string, amount: number, type: 'earn' | 'redeem', description: string) {
+  try {
+    const key = `maslahat_tx_history_${userId}`;
+    const existing = getLocalTransactions(userId);
+    const newTx: CoinTransaction = {
+      id: `localtx-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      amount,
+      type,
+      description,
+      timestamp: new Date().toISOString()
+    };
+    existing.unshift(newTx);
+    localStorage.setItem(key, JSON.stringify(existing));
+  } catch (error) {
+    console.error('Failed to save local transaction', error);
+  }
+}
+// ──────────────────────────────────────────────────────────────────────────
+
 export async function getRecommendations(userId: string): Promise<{ user: TangolabUser; recommendations: any[] } | null> {
   try {
     const response = await globalThis.fetch(`${API_BASE_URL}/api/tangolab/users/${encodeURIComponent(userId)}/recommendations`);
@@ -163,24 +192,33 @@ export async function earnCoins(
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ amount, description }),
     });
+    
+    // Simpan ke local storage terlepas dari API berhasil atau tidak (sebagai fallback offline)
+    saveLocalTransaction(userId, amount, 'earn', description || 'Mendapatkan Poin');
+    
     if (!response.ok) return null;
     return await response.json();
   } catch (error) {
     console.error('earnCoins failed:', error);
-    return null;
+    // Simpan fallback ke local jika error jaringan
+    saveLocalTransaction(userId, amount, 'earn', description || 'Mendapatkan Poin');
+    return { message: "Disimpan secara offline", new_balance: amount, transaction: {} as any };
   }
 }
 
 export async function getTransactionHistory(userId: string): Promise<CoinTransaction[]> {
+  const localHistory = getLocalTransactions(userId);
+
   try {
     const response = await globalThis.fetch(`${API_BASE_URL}/api/tangolab/users/transactions?user_id=${encodeURIComponent(userId)}`, { headers: authHeaders() });
-    if (!response.ok) return [];
+    if (!response.ok) return localHistory;
+    
     const data = await response.json();
     const transactions = Array.isArray(data)
       ? data
       : data.transactions || data.history || data.data?.transactions || data.data || [];
 
-    return (Array.isArray(transactions) ? transactions : []).map((transaction: any, index: number) => ({
+    const mappedBackend = (Array.isArray(transactions) ? transactions : []).map((transaction: any, index: number) => ({
       id: String(transaction.id ?? transaction.transaction_id ?? `transaction-${index}`),
       amount: Math.abs(Number(transaction.amount ?? transaction.points ?? transaction.coin_amount ?? 0)),
       type: String(transaction.type ?? transaction.transaction_type ?? transaction.action ?? '').toLowerCase().includes('redeem') ||
@@ -190,10 +228,16 @@ export async function getTransactionHistory(userId: string): Promise<CoinTransac
         : 'earn',
       description: transaction.description ?? transaction.reason ?? transaction.source ?? transaction.note ?? 'Transaksi poin',
       timestamp: transaction.timestamp ?? transaction.created_at ?? transaction.date,
-    }));
+    })).filter((tx: CoinTransaction) => tx.id !== 'tx-1' && tx.id !== 'tx-2'); // Filter out dummy data from server.ts
+
+    // Gabungkan riwayat lokal dengan riwayat backend, hindari duplikat jika backend sudah mencatat
+    const backendIds = new Set(mappedBackend.map((t: CoinTransaction) => t.id));
+    const merged = [...mappedBackend, ...localHistory.filter(ltx => !backendIds.has(ltx.id))];
+    
+    return merged.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
   } catch (error) {
-    console.error('getTransactionHistory failed:', error);
-    return [];
+    console.warn('getTransactionHistory API failed, using local history only:', error);
+    return localHistory;
   }
 }
 

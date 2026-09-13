@@ -108,59 +108,59 @@ export default function CartModal({
                         initial={{ x: -20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ delay: idx * 0.1 }}
-                        className={`flex flex-col gap-2 relative ${isInline ? 'bg-white p-2 sm:p-3 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100' : 'pb-4 border-b border-slate-50'}`}
+                        className={`flex items-center gap-2 sm:gap-3 relative ${isInline ? 'bg-white p-2 sm:p-3 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100' : 'pb-4 border-b border-slate-50'}`}
                       >
-                        <div className="flex gap-2 sm:gap-3">
-                          <div className="relative flex-shrink-0">
-                            <img src={item.image} className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover ring-2 ring-slate-50" referrerPolicy="no-referrer" />
-                          </div>
+                        <div className="relative flex-shrink-0">
+                          <img src={item.image} className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover ring-2 ring-slate-50" referrerPolicy="no-referrer" />
+                        </div>
+                        
+                        <div className="flex-1 flex flex-col justify-center min-w-0 py-1">
+                          <h4 className="font-extrabold text-slate-800 text-xs sm:text-sm leading-snug mb-0.5 truncate">{item.name}</h4>
+                          <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Rp {(item.discountPrice || item.price).toLocaleString('id-ID')}</p>
+                          <p className="font-black text-[#FF6B00] text-sm sm:text-base leading-tight">Rp {((item.discountPrice || item.price) * item.quantity).toLocaleString('id-ID')}</p>
                           
-                          <div className="flex-1 flex flex-col justify-start pt-1">
-                            <h4 className="font-extrabold text-slate-800 text-xs sm:text-sm leading-snug mb-0.5 pr-2">{item.name}</h4>
-                            <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Rp {(item.discountPrice || item.price).toLocaleString('id-ID')}</p>
-                            <p className="font-black text-[#FF6B00] text-sm sm:text-base mt-auto">Rp {((item.discountPrice || item.price) * item.quantity).toLocaleString('id-ID')}</p>
-                          </div>
+                          {item.note && (
+                            <div className="flex items-start gap-1 mt-1">
+                              <MessageSquare size={10} className="text-[#FF6B00] mt-0.5 shrink-0" />
+                              <span className="text-[9px] text-slate-500 font-medium italic line-clamp-2 leading-tight">"{item.note}"</span>
+                            </div>
+                          )}
                         </div>
 
-                          <div className="flex items-center gap-2 min-w-0">
-                          {item.note ? (
-                              <div className="flex min-w-0 flex-1 items-center gap-2 text-[10px] text-slate-600 bg-orange-50 border border-orange-100 p-2 rounded-xl">
-                              <div className="flex min-w-0 items-center gap-2">
-                                <MessageSquare size={14} className="text-[#FF6B00] mt-0.5 flex-shrink-0" />
-                                <span className="truncate font-medium italic leading-snug">"{item.note}"</span>
-                              </div>
-                              <button onClick={() => { setNote(item.note || ''); setEditingCartItem({id: item.id, oldNote: item.note || '', item: item as MenuItem}); }} className="text-[#FF6B00] font-black shrink-0 underline decoration-2 underline-offset-2">Ubah</button>
-                            </div>
-                          ) : (
-                              <button onClick={() => { setNote(''); setEditingCartItem({id: item.id, oldNote: '', item: item as MenuItem}); }} className="flex min-w-0 flex-1 items-center gap-1.5 text-[9px] font-bold text-[#FF6B00] bg-orange-50/80 px-2 py-1.5 rounded-lg transition-colors truncate">
-                              <MessageSquare size={12} />
-                              <span className="truncate">Tambah Catatan</span>
-                            </button>
-                          )}
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                          <button 
+                            onClick={() => { 
+                              setNote(item.note || ''); 
+                              setEditingCartItem({id: item.id, oldNote: item.note || '', item: item as MenuItem}); 
+                            }} 
+                            className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-orange-50 text-[#FF6B00] rounded-xl hover:bg-orange-100 transition-colors shrink-0"
+                            title={item.note ? "Ubah Catatan" : "Tambah Catatan"}
+                          >
+                            <MessageSquare size={14} />
+                          </button>
                           
-                          <div className="flex shrink-0 items-center gap-2">
-                            <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">
-                              <button
-                                onClick={() => updateQuantity(item.id, item.note || '', -1)}
-                                className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-100 text-slate-500 active:scale-95 transition-transform"
-                              >
-                                <Minus size={14} strokeWidth={2.5} />
-                              </button>
-                              <span className="font-black text-xs min-w-[1.5rem] text-center text-slate-800">{item.quantity}</span>
-                              <button
-                                onClick={() => updateQuantity(item.id, item.note || '', 1)}
-                                className="w-7 h-7 flex items-center justify-center bg-[#FF6B00] rounded-lg shadow-md shadow-orange-200 text-white active:scale-95 transition-transform"
-                              >
-                                <Plus size={14} strokeWidth={2.5} />
-                              </button>
-                            </div>
-                            <button 
-                              onClick={() => updateQuantity(item.id, item.note || '', -item.quantity)}
-                              className="p-2 text-red-500 bg-red-50 rounded-xl active:scale-95 flex items-center gap-2 transition-transform shadow-sm"
+                          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100 shrink-0">
+                            <button
+                              onClick={() => updateQuantity(item.id, item.note || '', -1)}
+                              className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-100 text-slate-500 active:scale-95 transition-transform shrink-0"
                             >
-                              <Trash2 size={16} />
+                              <Minus size={12} strokeWidth={2.5} />
+                            </button>
+                            <span className="font-black text-xs sm:text-sm min-w-[1.2rem] sm:min-w-[1.5rem] text-center text-slate-800">{item.quantity}</span>
+                            <button
+                              onClick={() => updateQuantity(item.id, item.note || '', 1)}
+                              className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center bg-[#FF6B00] rounded-lg shadow-md shadow-orange-200 text-white active:scale-95 transition-transform shrink-0"
+                            >
+                              <Plus size={12} strokeWidth={2.5} />
                             </button>
                           </div>
+                          
+                          <button 
+                            onClick={() => updateQuantity(item.id, item.note || '', -item.quantity)}
+                            className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-red-500 bg-red-50 rounded-xl active:scale-95 transition-transform shrink-0"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </motion.div>
                     ))}
@@ -169,46 +169,34 @@ export default function CartModal({
               </div>
 
               {cart.length > 0 && (
-                <div className={`p-3 sm:p-4 space-y-3 ${isInline ? 'absolute bottom-0 left-0 right-0 bg-white mt-1' : 'shrink-0 bg-white border-t border-slate-50'}`}>
+                <div className={`p-3 sm:p-4 space-y-3 ${isInline ? 'absolute bottom-0 left-0 right-0 bg-white mt-1 pb-20' : 'shrink-0 bg-white border-t border-slate-50'}`}>
                   
                   {/* Removed Delivery Options */}
 
-                  <div className={`space-y-2 px-2 ${isInline ? 'bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-100' : ''}`}>
+                  <div className={`space-y-2 py-3 ${isInline ? 'bg-slate-50/50 border-y border-slate-100 -mx-3 sm:-mx-4 px-4 sm:px-5' : 'px-2'}`}>
                     <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest">
                       <span>Subtotal</span>
                       <span className="text-slate-600 font-black tracking-normal">Rp {totalPrice.toLocaleString('id-ID')}</span>
                     </div>
-                    <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-widest">
-                      <span>Tax (0%)</span>
-                      <span className="text-emerald-500 font-black tracking-normal">FREE</span>
-                    </div>
-                    <div className="pt-2 border-t border-dashed border-slate-200">
-                      <div className="flex items-end justify-between gap-3">
-                        <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Total yang harus dibayar</p>
-                        <p className="text-right text-2xl font-black text-[#FF6B00] tracking-tight whitespace-nowrap">Rp {totalPrice.toLocaleString('id-ID')}</p>
-                      </div>
+                    <div className="pt-3 border-t border-dashed border-slate-200">
+                      <button
+                        onClick={onCheckout}
+                        className="w-full bg-[#FF6B00] text-white py-3 sm:py-3.5 rounded-xl font-black text-sm sm:text-base hover:bg-[#e66000] transition-all shadow-lg shadow-orange-200 active:scale-[0.98] flex items-center justify-between px-4 sm:px-5 relative overflow-hidden group"
+                      >
+                        <span className="relative z-10 tracking-wide uppercase">Bayar</span>
+                        <span className="relative z-10 flex items-center gap-2 text-base sm:text-lg">
+                          Rp {totalPrice.toLocaleString('id-ID')}
+                          <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                        </span>
+                        <motion.div 
+                          initial={{ left: '-100%' }}
+                          whileHover={{ left: '100%' }}
+                          transition={{ duration: 0.6 }}
+                          className="absolute top-0 w-1/2 h-full bg-white/20 skew-x-12"
+                        />
+                      </button>
                     </div>
                   </div>
-                  
-
-
-                  <div className="pb-1 md:pb-0 px-2 sm:px-0">
-  <button
-    onClick={onCheckout}
-    className="w-full bg-[#FF6B00] text-white py-2.5 rounded-xl font-black text-xs sm:text-sm hover:bg-[#e66000] transition-all shadow-lg shadow-orange-200 active:scale-[0.98] flex items-center justify-center gap-2 relative overflow-hidden group"
-  >
-    <span className="relative z-10 flex items-center gap-2">
-      Lanjut ke Pembayaran
-      <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-    </span>
-    <motion.div 
-      initial={{ left: '-100%' }}
-      whileHover={{ left: '100%' }}
-      transition={{ duration: 0.6 }}
-      className="absolute top-0 w-1/2 h-full bg-white/20 skew-x-12"
-    />
-  </button>
-</div>
                 </div>
               )}
             </motion.div>

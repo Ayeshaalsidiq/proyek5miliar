@@ -210,48 +210,13 @@ function getRedeemedVouchersFromStorage(userId: string): any[] {
 
 export async function getUserVouchers(userId: string): Promise<any[]> {
   try {
-    // Endpoint /api/users/:id/vouchers tidak tersedia di KASIR.
-    // Ambil dari /api/promos yang berisi daftar promo kode diskon aktif.
-    const response = await fetch(`${API_BASE_URL}/api/promos`, { headers: smartTagAuthHeaders() });
-    const promoVouchers: any[] = [];
-    if (response.ok) {
-      const data = await response.json();
-      const promos = Array.isArray(data) ? data : (data?.promos ?? data?.data ?? []);
-      if (Array.isArray(promos)) {
-        promos
-          .filter((p: any) => p.status === 'Active' || p.status === 'active' || !p.status)
-          .forEach((p: any) => {
-            promoVouchers.push({
-              id: `promo-${p.id}`,
-              name: p.title || p.name || 'Voucher Diskon',
-              title: p.title || p.name || 'Voucher Diskon',
-              description: `Potongan ${p.type === 'Persen' ? p.discount + '%' : 'Rp ' + Number(p.discount || 0).toLocaleString('id-ID')}`,
-              code: p.code || p.voucher_code || '',
-              voucher_code: p.code || p.voucher_code || '',
-              discount: p.type === 'Persen' ? `${p.discount}%` : `Rp ${Number(p.discount || 0).toLocaleString('id-ID')}`,
-              discount_price: p.type !== 'Persen' ? Number(p.discount || 0) : 0,
-              discount_percent: p.type === 'Persen' ? Number(p.discount || 0) : 0,
-              minPurchase: Number(p.minPurchase || p.min_purchase || 0),
-              expiry: p.period || '30 hari',
-              color: 'from-orange-500 to-amber-600',
-              icon: '🎫',
-              cost: 0,
-              used: false,
-              source: 'promo',
-              claimedAt: new Date().toLocaleString('id-ID'),
-            });
-          });
-      }
-    }
-
-    // Gabungkan dengan voucher hasil tukar poin dari localStorage
+    // Sesuai permintaan: HANYA TAMPILKAN VOUCHER HASIL TUKAR POIN
     const redeemedVouchers = getRedeemedVouchersFromStorage(userId).map((v: any) => ({
       ...v,
       source: 'redeemed',
     }));
 
-    // Redeemed vouchers muncul di awal
-    return [...redeemedVouchers, ...promoVouchers];
+    return redeemedVouchers;
   } catch (error) {
     console.error('getUserVouchers failed:', error);
     return [];

@@ -45,23 +45,14 @@ export default function VoucherTicketCard({
           <p className="text-slate-800 font-black text-sm leading-tight line-clamp-2">{title}</p>
           <p className="text-[#FF6B00] font-black text-[10px] uppercase tracking-wider mt-1">PROMO</p>
         </div>
-        {discountText && (
-          <div className="ticket-card__discount bg-orange-50 px-3 py-1.5 rounded-xl border border-orange-100 text-center shadow-sm z-10 shrink-0">
-            <p className="text-[#FF6B00] font-black text-base leading-none whitespace-nowrap">{discountText}</p>
-          </div>
-        )}
       </div>
 
       <div className="ticket-card__action ticket-card__unified-action bg-white px-3.5 flex flex-col items-center justify-center gap-1">
-        {hasPoints ? (
+        {hasPoints && (
           <div className="flex items-center gap-1.5 text-[#FF6B00] shrink-0">
             <Coins size={14} className="text-[#FF6B00]" strokeWidth={2.5} />
             <p className="font-black text-[#FF6B00] text-base leading-none">{points}</p>
           </div>
-        ) : (
-          <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded uppercase leading-tight max-w-[82px] break-words">
-            {code || 'VOUCHER'}
-          </span>
         )}
 
         <button

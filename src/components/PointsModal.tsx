@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Coins, Clock, Gift, Ticket, AlertCircle, RefreshCw } from 'lucide-react';
 import { PromoKoin, MyVoucher, UserVoucher } from '../types';
-import { getTransactionHistory, CoinTransaction } from '../services/tangolabService';
+import { getTransactionHistory, CoinTransaction, saveLocalTransaction } from '../services/tangolabService';
 import { getCoinPromosCatalog, getRewardRedeemStatus, markRewardRedeemed, redeemCoinVoucher } from '../services/smartTagApi';
 import VoucherTicketCard from './VoucherTicketCard';
 
@@ -59,6 +59,9 @@ export default function PointsModal({ isOpen, onClose, points, userId, onRefresh
       markRewardRedeemed(promo.id);
       setRedeemedPromos(previous => new Set(previous).add(promo.id));
       setRedeemSuccess(promo.title);
+      // Track real redemption!
+      saveLocalTransaction(userId, promo.coin_cost, 'redeem', `Tukar Voucher: ${promo.title}`);
+      
       onRefreshPoints();
       setTimeout(() => setRedeemSuccess(null), 3000);
     } else {

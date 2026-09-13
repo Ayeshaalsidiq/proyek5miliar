@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Ticket, Clock, QrCode, ChevronRight, Info, Coins } from 'lucide-react';
 import { getCoinPromosCatalog, getRewardRedeemStatus, markRewardRedeemed, redeemCoinVoucher } from '../services/smartTagApi';
+import { saveLocalTransaction } from '../services/tangolabService';
 import type { PromoKoin } from '../types';
 import VoucherTicketCard from './VoucherTicketCard';
 
@@ -60,6 +61,9 @@ export default function VoucherRedeemModal({
       markRewardRedeemed(promo.id);
       setRedeemedPromos(previous => new Set(previous).add(promo.id));
       setRedeemMessage({ type: 'success', text: result.message || `${promo.title} berhasil ditukar.` });
+      // Track real redemption!
+      saveLocalTransaction(userId, promo.coin_cost, 'redeem', `Tukar Voucher: ${promo.title}`);
+      
       onVoucherRedeemed(result.data || {}, promo);
       onRefreshPoints();
       onRefreshVouchers();
@@ -212,7 +216,15 @@ export default function VoucherRedeemModal({
                           <div className="bg-white rounded-2xl p-4 text-text-light text-xs">Memuat voucher SmartTag...</div>
                         ) : pointPromos.length === 0 ? (
                           <div className="bg-white border border-border-light rounded-2xl p-4 text-text-light text-xs">Belum ada voucher poin dari SmartTag.</div>
-                        ) : pointPromos.map((promo) => (
+                        ) : pointPromos.slice().sort((a, b) => {
+                          const getScore = (p: typeof a) => {
+                            if (redeemedPromos.has(p.id)) return 3;
+                            if (p.coin_cost <= 0) return 4;
+                            if (points < p.coin_cost) return 2;
+                            return 1;
+                          };
+                          return getScore(a) - getScore(b);
+                        }).map((promo) => (
                           <VoucherTicketCard
                             key={promo.id}
                             title={promo.title}

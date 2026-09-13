@@ -86,7 +86,7 @@ export default function Header({ tableNumber, isGuest, zoneName, searchQuery, se
             </button>
           )}
           <div className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden transition-all duration-300 ${isDashboard ? 'border-[3px] border-white' : 'border border-slate-200'}`}>
-            <img src="/logo-ngolab.png" alt="Ngolab Logo" className="w-full h-full object-contain rounded-full p-0.5" />
+            <img src="/ngolab logo png.png" alt="Ngolab Logo" className="w-full h-full object-contain rounded-full p-0.5" />
           </div>
           {isDashboard && (
             <div className="min-w-0 text-left">

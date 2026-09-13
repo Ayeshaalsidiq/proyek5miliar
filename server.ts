@@ -865,7 +865,7 @@ async function startServer() {
 
   const dummyOrders = new Map<string, { status: string; timestamp: number }>();
 
-  app.post("/api/order", async (req, res) => {
+  app.post("/api/orders", async (req, res) => {
     try {
       console.log("Submitting order ke Kasir MySQL...");
       const response = await fetch(`${KASIR_DOMAIN}/api/orders`, {
@@ -878,7 +878,7 @@ async function startServer() {
         }
       });
       const data = await response.json();
-      res.json(data);
+      res.status(response.status).json(data);
     } catch (error) {
       console.warn("[PROXY] Gagal kirim pesanan ke Kasir. Menggunakan simulasi order dummy.");
       const orderId = req.body.id || `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -935,7 +935,29 @@ async function startServer() {
     }
   });
 
-  app.get("/api/order/:id", async (req, res) => {
+  app.post("/api/orders/:id/payment-proof", async (req, res) => {
+    const { id } = req.params;
+    try {
+      console.log(`[PROXY] Uploading payment proof for order ${id}...`);
+      const response = await fetch(`${KASIR_DOMAIN}/api/orders/${id}/payment-proof`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Bypass-Tunnel-Reminder": "true",
+          "content-type": req.headers["content-type"] as string
+        },
+        body: req,
+        duplex: 'half'
+      });
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } catch (error) {
+      console.error("[PROXY] Gagal upload bukti bayar:", error);
+      res.status(500).json({ success: false, message: "Internal proxy error" });
+    }
+  });
+
+  app.get("/api/orders/:id", async (req, res) => {
     const { id } = req.params;
 
     // Cek dulu apakah ada di memori dummyOrders

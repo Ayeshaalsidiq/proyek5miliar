@@ -1,0 +1,82 @@
+﻿diff --git a/src/App.tsx b/src/App.tsx
+index c7967b9..0350169 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -76,28 +76,17 @@ export default function App() {
+     }
+   });
+   const [myVouchers, setMyVouchers] = useState<MyVoucher[]>(() => {
+-    const dummyVouchers = Array.from({ length: 12 }).map((_, i) => ({
+-      id: `test-scroll-${i}`,
+-      voucher_code: `NGOLAB${i + 1}K`,
+-      name: `Voucher Diskon Spesial ${i + 1}`,
+-      description: `Potongan ekstra untuk menu favorit Anda. Berlaku kelipatan dengan syarat dan ketentuan yang berlaku pada semua outlet Ngolab.`,
+-      discount_price: (i + 1) * 2000,
+-      used: false,
+-      icon: '­ƒÄ½'
+-    }));
+-
+     try {
+       const saved = localStorage.getItem('maslahat_my_vouchers');
+-      if (!saved) return dummyVouchers;
++      if (!saved) return [];
+       const parsed = JSON.parse(saved);
+       if (Array.isArray(parsed)) {
+         const cleaned = parsed.filter((v: any) => !v.used);
+-        // Gabungkan voucher asli yang belum dipakai dengan dummy
+-        return [...cleaned, ...dummyVouchers];
++        return cleaned;
+       }
+-      return dummyVouchers;
++      return [];
+     } catch {
+-      return dummyVouchers;
++      return [];
+     }
+   });
+   const [appliedVoucher, setAppliedVoucher] = useState<MyVoucher | null>(null);
+@@ -773,7 +762,7 @@ export default function App() {
+       amountPaid: finalTotal,
+       change: 0,
+       total: finalTotal,
+-      promoCode: appliedVoucher ? appliedVoucher.code : null,
++      voucherCode: appliedVoucher ? appliedVoucher.code : null,
+       userId: isGuest ? null : (currentUser?.id || null),
+       notes: orderNote, // CATATAN PESANAN GLOBAL
+       items: cart.map(item => ({
+@@ -787,13 +776,34 @@ export default function App() {
+ 
+     try {
+       // Tembak Data Pesanan LANGSUNG ke Sistem Admin via Localtunnel
+-      await fetch(`${API_BASE_URL}/api/order`, {
++      const orderRes = await fetch(`${API_BASE_URL}/api/order`, {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json'
+         },
+         body: JSON.stringify(orderDataKasir)
+       });
++      
++      if (!orderRes.ok) {
++        throw new Error("Gagal mengirim pesanan");
++      }
++
++      // Jika ada payment proof (bukti bayar), upload secara terpisah
++      if (paymentProof) {
++        const formData = new FormData();
++        formData.append('paymentProof', paymentProof);
++
++        const uploadRes = await fetch(`${API_BASE_URL}/api/orders/${newOrder.id}/payment-proof`, {
++          method: 'POST',
++          body: formData,
++        });
++
++        if (uploadRes.ok) {
++          newOrder.status = "Menunggu Validasi"; // Update status setelah sukses upload
++        } else {
++          console.warn("Gagal mengupload bukti pembayaran");
++        }
++      }
+ 
+       if (!isGuest && currentUser?.id) {
+         // Fetch updated points from backend
