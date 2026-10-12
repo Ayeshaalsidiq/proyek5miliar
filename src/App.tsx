@@ -42,6 +42,7 @@ export default function App() {
   });
   const [authView, setAuthView] = useState<'welcome' | 'login' | 'register'>('welcome');
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [showScanRequired, setShowScanRequired] = useState(false);
   const [tableNumber, setTableNumber] = useState<string>(() => {
     const params = new URLSearchParams(window.location.search);
     const meja = params.get('meja');
@@ -634,7 +635,17 @@ export default function App() {
   }, [recommendations, menuData]);
 
 
+  // Wajib scan barcode/QR meja sebelum memesan
+  const hasScannedTable = !!tableNumber && tableNumber !== 'Belum Scan' && tableNumber !== 'Mode Tamu';
+
+  const requireTableScan = () => {
+    if (hasScannedTable) return true;
+    setShowScanRequired(true);
+    return false;
+  };
+
   const addToCartWithNote = (item: MenuItem, note: string) => {
+    if (!requireTableScan()) return;
     setCart((prev) => {
       const existing = prev.find((c) => c.id === item.id && c.note === note);
       if (existing) {
@@ -658,6 +669,7 @@ export default function App() {
   };
 
   const handleReorder = (order: Order) => {
+    if (!requireTableScan()) return;
     setCart((prev) => {
       let newCart = [...prev];
       order.items.forEach((orderItem) => {
@@ -684,6 +696,7 @@ export default function App() {
   const cartTotal = cart.reduce((sum, item) => sum + (item.discountPrice || item.price) * item.quantity, 0);
 
   const handleCheckout = () => {
+    if (!requireTableScan()) return;
     setIsCartOpen(false);
     setIsPaymentOpen(true);
   };
@@ -723,6 +736,7 @@ export default function App() {
 
 
   const handleConfirmPayment = async (method: PaymentMethod, customerName: string, orderNote = '', paymentProof: File | null = null) => {
+    if (!requireTableScan()) return;
     const finalCustomerName = customerName || (isGuest ? "Guest" : (currentUser?.nama || currentUser?.name || "Pelanggan App"));
 
     // HITUNG DISKON VOUCHER
@@ -1352,7 +1366,7 @@ export default function App() {
               onClose={() => setActiveTab('dashboard')}
               cart={cart}
               updateQuantity={updateQuantity}
-              onCheckout={() => setActiveTab('payment')}
+              onCheckout={() => { if (requireTableScan()) setActiveTab('payment'); }}
               selectedItemForNote={selectedItemForNote}
               setSelectedItemForNote={setSelectedItemForNote}
               addToCartWithNote={addToCartWithNote}
@@ -1465,6 +1479,57 @@ export default function App() {
                   className="w-full bg-slate-100 text-slate-500 py-4 rounded-2xl font-black text-sm"
                 >
                   KEMBALI KE MENU
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Pemberitahuan Wajib Scan Barcode Meja */}
+      <AnimatePresence>
+        {showScanRequired && (
+          <div className="fixed inset-0 z-[115] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowScanRequired(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white w-full max-w-sm rounded-[40px] p-8 relative z-10 text-center space-y-6"
+            >
+              <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-primary mx-auto">
+                <QrCode size={40} />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-black text-slate-800">Scan Barcode Meja Dulu</h3>
+                <p className="text-slate-400 text-sm font-medium leading-relaxed">
+                  Anda belum terhubung ke meja. Silakan scan barcode/QR di meja Anda untuk mulai memesan.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setShowScanRequired(false);
+                    setScanResult(null);
+                    setScannerError(null);
+                    setShowScanner(true);
+                  }}
+                  className="w-full bg-[#FF6B00] text-white py-4 rounded-2xl font-black text-sm shadow-lg shadow-orange-100 flex items-center justify-center gap-2"
+                >
+                  <QrCode size={18} />
+                  SCAN SEKARANG
+                </button>
+                <button
+                  onClick={() => setShowScanRequired(false)}
+                  className="w-full bg-slate-100 text-slate-500 py-4 rounded-2xl font-black text-sm"
+                >
+                  NANTI SAJA
                 </button>
               </div>
             </motion.div>
